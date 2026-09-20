@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>📊 สรุปสถิติวันนี้</h1>
+  <div class="row"><span class="label">ออเดอร์ทั้งหมดวันนี้</span><strong>{{ total_today }}</strong></div>
+  <div class="row"><span class="label">รับอาหารแล้ว</span><strong>{{ completed_today }}</strong></div>
+  <div class="row"><span class="label">ยกเลิก</span><strong>{{ cancelled_today }}</strong></div>
+  <div class="row"><span class="label">กำลังทำ/รอคิวตอนนี้</span><strong>{{ active_now }}</strong></div>
+  <div class="row"><span class="label">เวลาทำอาหารเฉลี่ย (นาที)</span><strong>{{ avg_prep_minutes }}</strong></div>
+  <div class="row"><span class="label">ยอดขายวันนี้ (บาท)</span><strong>{{ "%.0f"|format(revenue_today) }}</strong></div>
+</div>
+
+<div class="card">
+  <h2>เมนูขายดีวันนี้</h2>
+  <table>
+    <tr><th>เมนู</th><th>จำนวน</th></tr>
+    {% for it in top_items %}
+    <tr>
+      <td>{{ it.name }}</td>
+      <td>{{ it.qty }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<a href="{{ url_for('admin.admin') }}" class="btn btn-secondary">กลับหน้าครัว</a>
+{% endblock %}

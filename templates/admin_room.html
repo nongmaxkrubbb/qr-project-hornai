@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}ครัว - {{ branch.name }}{% endblock %}
+{% block content %}
+<div class="card" style="text-align:center;">
+  <h1>👨‍🍳 {{ branch.name }}</h1>
+  <div style="display:flex; justify-content:space-between; gap:8px;">
+    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-small btn-secondary">📊 สถิติ</a>
+    <a href="{{ url_for('admin.menu_manage') }}" class="btn btn-small btn-secondary">🍽️ จัดการเมนู</a>
+    <form action="{{ url_for('admin.admin_logout') }}" method="post" style="display:inline-block;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-small btn-danger" type="submit">ออกจากระบบ</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <h2>🟢 พร้อมรับแล้ว ({{ ready|length }})</h2>
+  {% if ready %}
+  {% for o in ready %}
+  <table style="margin-bottom:10px;">
+    <tr>
+      <td><strong style="color:var(--success);">{{ o.order_code }}</strong> — {{ o.student_name }}{% if o.room_no %} (ห้อง {{ o.room_no }}){% endif %}</td>
+      <td style="text-align:right;">
+        <form action="{{ url_for('admin.complete_order', order_id=o.id) }}" method="post" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-small" style="background: var(--success);" type="submit">รับแล้ว ✅</button>
+        </form>
+      </td>
+    </tr>
+    <tr><td colspan="2" style="font-size:0.9rem; color:var(--text-muted); border-bottom:none;">
+      {% for it in o['items'] %}{{ it.item_name }} x{{ it.quantity }}{% if not loop.last %}, {% endif %}{% endfor %}
+      {% if o.note %} — หมายเหตุ: {{ o.note }}{% endif %}
+    </td></tr>
+  </table>
+  {% endfor %}
+  {% else %}
+  <p class="label">ยังไม่มีออเดอร์ที่พร้อมรับ</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>🔵 กำลังทำ ({{ preparing|length }})</h2>
+  {% if preparing %}
+  {% for o in preparing %}
+  <table style="margin-bottom:10px;">
+    <tr>
+      <td><strong style="color:var(--primary);">{{ o.order_code }}</strong> — {{ o.student_name }}{% if o.room_no %} (ห้อง {{ o.room_no }}){% endif %}</td>
+      <td style="text-align:right;">
+        <form action="{{ url_for('admin.ready_order', order_id=o.id) }}" method="post" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-small" type="submit">เสร็จแล้ว</button>
+        </form>
+      </td>
+    </tr>
+    <tr><td colspan="2" style="font-size:0.9rem; color:var(--text-muted); border-bottom:none;">
+      {% for it in o['items'] %}{{ it.item_name }} x{{ it.quantity }}{% if not loop.last %}, {% endif %}{% endfor %}
+      {% if o.note %} — หมายเหตุ: {{ o.note }}{% endif %}
+    </td></tr>
+  </table>
+  {% endfor %}
+  {% else %}
+  <p class="label">ยังไม่มีออเดอร์ที่กำลังทำ</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>🟡 รอคิว ({{ waiting|length }})</h2>
+  {% if waiting %}
+  {% for o in waiting %}
+  <table style="margin-bottom:10px;">
+    <tr>
+      <td><strong>{{ o.order_code }}</strong> — {{ o.student_name }}{% if o.room_no %} (ห้อง {{ o.room_no }}){% endif %}
+        <br><span style="font-size:0.85rem; color:var(--text-muted);">{{ iso(o.created_at)[11:16] }}</span>
+      </td>
+      <td style="text-align:right;">
+        <form action="{{ url_for('admin.start_order', order_id=o.id) }}" method="post" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-small" type="submit">เริ่มทำ</button>
+        </form>
+        <form action="{{ url_for('admin.cancel_order', order_id=o.id) }}" method="post" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-small btn-danger" type="submit">ยกเลิก</button>
+        </form>
+      </td>
+    </tr>
+    <tr><td colspan="2" style="font-size:0.9rem; color:var(--text-muted); border-bottom:none;">
+      {% for it in o['items'] %}{{ it.item_name }} x{{ it.quantity }}{% if not loop.last %}, {% endif %}{% endfor %}
+      {% if o.note %} — หมายเหตุ: {{ o.note }}{% endif %}
+    </td></tr>
+  </table>
+  {% endfor %}
+  {% else %}
+  <p class="label">ไม่มีออเดอร์ที่รออยู่</p>
+  {% endif %}
+</div>
+
+<script>
+// รีเฟรชอัตโนมัติทุก 8 วินาที ให้เจ้าหน้าที่เห็นออเดอร์ใหม่โดยไม่ต้องกดเอง
+setTimeout(() => location.reload(), 8000);
+</script>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}สั่งอาหาร - ร้านอาหารหอใน{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>🍜 ร้านอาหารหอใน</h1>
+  <p class="label">เลือกเมนูแล้วกด "+" เพื่อเพิ่มลงตะกร้า</p>
+
+  {% for category, items in categories.items() %}
+  <h2 class="category-title">{{ category }}</h2>
+  {% for item in items %}
+  <div class="menu-item">
+    <div>
+      <div class="menu-item-name">{{ item.name }}</div>
+      <div class="menu-item-price">{{ "%.0f"|format(item.price) }} บาท</div>
+    </div>
+    <form action="{{ url_for('user.cart_add') }}" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="menu_item_id" value="{{ item.id }}">
+      <input type="hidden" name="branch_id" value="{{ branch_id }}">
+      <button class="qty-btn" type="submit" aria-label="เพิ่ม {{ item.name }}">+</button>
+    </form>
+  </div>
+  {% endfor %}
+  {% else %}
+  <p class="label">ยังไม่มีเมนูวันนี้</p>
+  {% endfor %}
+</div>
+
+<a href="{{ url_for('user.cart_view', branch_id=branch_id) }}" class="btn cart-fab">
+  🛒 ดูตะกร้า{% if cart_count %} ({{ cart_count }}){% endif %}
+</a>
+{% endblock %}

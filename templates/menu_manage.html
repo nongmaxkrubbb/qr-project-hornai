@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}จัดการเมนู{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>🍽️ จัดการเมนู</h1>
+  {% for item in items %}
+  <div class="menu-item">
+    <div>
+      <div class="menu-item-name">{{ item.name }} {% if not item.is_available %}<span style="color:var(--danger); font-size:0.8rem;">(ปิดขาย)</span>{% endif %}</div>
+      <div class="menu-item-price">{{ item.category }} · {{ "%.0f"|format(item.price) }} บาท</div>
+    </div>
+    <form action="{{ url_for('admin.menu_toggle', item_id=item.id) }}" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-small {% if item.is_available %}btn-danger{% endif %}" type="submit">
+        {% if item.is_available %}ปิดขาย{% else %}เปิดขาย{% endif %}
+      </button>
+    </form>
+  </div>
+  {% else %}
+  <p class="label">ยังไม่มีเมนูเลย เพิ่มด้านล่างได้เลย</p>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h2>➕ เพิ่มเมนูใหม่</h2>
+  <form action="{{ url_for('admin.menu_add') }}" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="branch_id" value="{{ branch_id }}">
+    <label class="label">ชื่อเมนู</label>
+    <input type="text" name="name" required
+           style="width:100%; padding:12px; border-radius:8px; border:1px solid #ddd; margin:6px 0 14px;">
+    <label class="label">ราคา (บาท)</label>
+    <input type="number" name="price" step="1" min="0" required
+           style="width:100%; padding:12px; border-radius:8px; border:1px solid #ddd; margin:6px 0 14px;">
+    <label class="label">หมวดหมู่</label>
+    <input type="text" name="category" value="อาหาร"
+           style="width:100%; padding:12px; border-radius:8px; border:1px solid #ddd; margin:6px 0 14px;">
+    <button class="btn" type="submit">เพิ่มเมนู</button>
+  </form>
+</div>
+
+<a href="{{ url_for('admin.admin') }}" class="btn btn-secondary">กลับหน้าครัว</a>
+{% endblock %}

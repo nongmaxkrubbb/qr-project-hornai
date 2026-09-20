@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}สถานะออเดอร์{% endblock %}
+{% block content %}
+<div class="card" style="text-align:center;">
+  <p class="label">ออเดอร์ของคุณ</p>
+  <div class="queue-number" id="order_code">-</div>
+  <span class="status-badge" id="status_badge">กำลังโหลด...</span>
+
+  <div style="margin-top:20px; text-align:left;" id="items_wrap">
+    <div class="row"><span class="label">รออยู่ก่อนหน้า</span><span id="orders_ahead">-</span> ออเดอร์</div>
+    <div class="row"><span class="label">เวลารอโดยประมาณ</span><span id="eta">-</span> นาที</div>
+    <div class="row"><span class="label">ยอดรวม</span><span id="total_price">-</span> บาท</div>
+  </div>
+
+  <div id="order_items" style="margin-top:16px; text-align:left;"></div>
+
+  <p class="label" style="margin-top:16px;">หน้านี้จะอัปเดตสถานะแบบเรียลไทม์ — เปิดค้างไว้ได้ จะแจ้งเตือนให้เองเมื่ออาหารเสร็จ</p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const orderId = {{ order_id }};
+const badgeText = {
+  waiting: "รอคิว",
+  preparing: "กำลังทำ",
+  ready: "พร้อมรับแล้ว! 🎉",
+  completed: "รับอาหารแล้ว",
+  cancelled: "ถูกยกเลิก"
+};
+let notifiedReady = false;
+
+if ("Notification" in window && Notification.permission === "default") {
+  Notification.requestPermission();
+}
+
+function notifyReady(orderCode) {
+  if (notifiedReady) return;
+  notifiedReady = true;
+  if ("Notification" in window && Notification.permission === "granted") {
+    new Notification("อาหารพร้อมแล้ว! 🍜", {
+      body: `ออเดอร์ ${orderCode} พร้อมรับที่ร้านแล้ว`,
+    });
+  }
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+}
+
+async function refreshStatus() {
+  try {
+    const res = await fetch(`/api/order_status/${orderId}`);
+    if (!res.ok) return;
+    const data = await res.json();
+
+    document.getElementById("order_code").textContent = data.order_code;
+    document.getElementById("orders_ahead").textContent = data.orders_ahead;
+    document.getElementById("eta").textContent = data.eta_minutes;
+    document.getElementById("total_price").textContent = data.total_price.toFixed(0);
+
+    const badge = document.getElementById("status_badge");
+    badge.textContent = badgeText[data.status] || data.status;
+    badge.className = "status-badge status-" + data.status;
+
+    const itemsWrap = document.getElementById("order_items");
+    itemsWrap.innerHTML = "<h2>รายการอาหาร</h2>" + data.items.map(
+      i => `<div class="row"><span>${i.name} x${i.quantity}</span><span>${(i.unit_price * i.quantity).toFixed(0)} บาท</span></div>`
+    ).join("");
+
+    if (data.status === "ready") {
+      notifyReady(data.order_code);
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+refreshStatus();
+
+// === Supabase Realtime ===
+const supabaseUrl = "{{ config.SUPABASE_URL }}";
+const supabaseKey = "{{ config.SUPABASE_ANON_KEY }}";
+const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+supabaseClient
+  .channel('public:orders')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, payload => {
+    // โหลดซ้ำทุกครั้งที่มีออเดอร์ใดๆ ขยับ เพื่อให้อัปเดตคิว (orders_ahead) ได้แม่นยำ
+    refreshStatus();
+  })
+  .subscribe();
+</script>
+{% endblock %}

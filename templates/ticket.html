@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}ออเดอร์ของคุณ{% endblock %}
+{% block content %}
+<div class="card" style="text-align:center;">
+  <p class="label">สั่งอาหารสำเร็จ! หมายเลขออเดอร์ของคุณ</p>
+  <div class="queue-number">{{ order_code }}</div>
+  <p class="label">สแกน QR Code นี้เพื่อติดตามสถานะแบบ real-time หรือกดปุ่มด้านล่างบนเครื่องนี้ได้เลย</p>
+  <div class="qr-wrap">
+    <img src="data:image/png;base64,{{ qr_b64 }}" width="220" height="220" alt="QR Code ติดตามออเดอร์">
+  </div>
+  <a href="{{ url_for('user.status_page', order_id=order_id) }}" class="btn">ดูสถานะออเดอร์ (บนเครื่องนี้)</a>
+  <a href="{{ url_for('user.index') }}" class="btn btn-secondary">สั่งอาหารเพิ่ม</a>
+</div>
+{% endblock %}

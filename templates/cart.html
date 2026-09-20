@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}ตะกร้าของคุณ{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>🛒 ตะกร้าของคุณ</h1>
+
+  {% if lines %}
+  {% for line in lines %}
+  <div class="row">
+    <span>{{ line.item.name }} x{{ line.qty }}</span>
+    <span>{{ "%.0f"|format(line.subtotal) }} บาท</span>
+  </div>
+  {% endfor %}
+  <div class="row" style="font-weight:600; font-size:1.1rem;">
+    <span>รวมทั้งหมด</span>
+    <span>{{ "%.0f"|format(total) }} บาท</span>
+  </div>
+
+  <form action="{{ url_for('user.checkout') }}" method="post" style="margin-top:20px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="branch_id" value="{{ branch_id }}">
+    <label class="label">ชื่อของคุณ *</label>
+    <input type="text" name="student_name" required
+           style="width:100%; padding:12px; border-radius:8px; border:1px solid #ddd; margin:6px 0 14px;">
+    <label class="label">เลขห้อง (ไม่บังคับ)</label>
+    <input type="text" name="room_no"
+           style="width:100%; padding:12px; border-radius:8px; border:1px solid #ddd; margin:6px 0 14px;">
+    <label class="label">หมายเหตุ เช่น ไม่เผ็ด (ไม่บังคับ)</label>
+    <input type="text" name="note"
+           style="width:100%; padding:12px; border-radius:8px; border:1px solid #ddd; margin:6px 0 14px;">
+    <button class="btn" type="submit">✅ ยืนยันสั่งอาหาร</button>
+  </form>
+  {% else %}
+  <p class="label">ตะกร้าว่างอยู่ ลองเลือกเมนูก่อนนะ</p>
+  {% endif %}
+</div>
+
+<a href="{{ url_for('user.index', branch_id=branch_id) }}" class="btn btn-secondary">กลับไปเลือกเมนู</a>
+{% endblock %}
