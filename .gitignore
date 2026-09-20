@@ -25,3 +25,6 @@ instance/
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Nested unzip duplicate folder
+qr-project-hornai-main/
