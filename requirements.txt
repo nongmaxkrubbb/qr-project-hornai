@@ -6,4 +6,4 @@ python-dotenv==1.0.1
 Flask-WTF==1.2.1
 Flask-Limiter==3.8.0
 gunicorn==22.0.0
-promptpay==3.0.0
+promptpay==1.1.9
