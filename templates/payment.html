@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}ชำระเงินออเดอร์ {{ order.order_code }}{% endblock %}
+{% block content %}
+<div class="card" style="text-align:center;">
+  <h1>ชำระเงิน</h1>
+  <p class="label">ยอดที่ต้องชำระ: <strong>{{ "%.0f"|format(order.total_price) }} บาท</strong></p>
+  
+  <div class="qr-wrap">
+    <img src="data:image/png;base64,{{ qr_b64 }}" alt="PromptPay QR">
+  </div>
+  <p class="label">พร้อมเพย์: {{ promptpay_id }}</p>
+  
+  <hr style="border:0; border-top:1px dashed #cbd5e1; margin: 24px 0;">
+  
+  <h2>อัปโหลดสลิป</h2>
+  <form action="{{ url_for('user.upload_slip', order_id=order.id) }}" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="order_code" value="{{ order.order_code }}">
+    <input type="file" name="slip" accept="image/*" required
+           style="display:block; width:100%; padding:12px; margin-bottom:16px; border:1px solid #ddd; border-radius:8px;">
+    
+    <button class="btn" type="submit">ส่งสลิปหลักฐาน</button>
+  </form>
+</div>
+{% endblock %}

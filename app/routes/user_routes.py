@@ -128,6 +128,7 @@ def checkout():
     student_name = request.form.get("student_name", "").strip()
     room_no = request.form.get("room_no", "").strip()
     note = request.form.get("note", "").strip()
+    payment_method = request.form.get("payment_method", "cash")
 
     cart = _get_cart()
     if not student_name or not cart:
@@ -160,7 +161,9 @@ def checkout():
         "student_name": student_name,
         "room_no": room_no or None,
         "note": note or None,
-        "status": "waiting",
+        "status": "waiting" if payment_method == "cash" else "pending_payment",
+        "payment_method": payment_method,
+        "payment_status": "pending",
         "total_price": total
     }
     res_order = supabase.table("orders").insert(order_data).execute()
@@ -179,6 +182,9 @@ def checkout():
     supabase.table("order_items").insert(order_items_data).execute()
 
     _save_cart({})
+    
+    if payment_method == "promptpay":
+        return redirect(url_for("user.payment_page", order_id=order_id))
 
     status_url = url_for("user.status_page", order_id=order_id, _external=True)
     qr_b64 = make_qr_base64(status_url)
@@ -227,4 +233,61 @@ def api_order_status(order_id):
             ],
             "created_at": iso(order["created_at"]),
         }
+    )
+
+@user_bp.route("/payment/<int:order_id>")
+def payment_page(order_id):
+    supabase = get_supabase()
+    res = supabase.table("orders").select("*").eq("id", order_id).execute()
+    if not res.data:
+        return "Order not found", 404
+        
+    order = res.data[0]
+    import os
+    from app.utils import generate_promptpay_qr_base64
+    
+    promptpay_id = os.getenv("PROMPTPAY_ID", "0000000000") # กำหนดค่า default ถ้าไม่มีใน .env
+    qr_b64 = generate_promptpay_qr_base64(promptpay_id, float(order["total_price"]))
+    
+    return render_template("payment.html", order=order, qr_b64=qr_b64, promptpay_id=promptpay_id)
+
+import uuid
+@user_bp.route("/payment/<int:order_id>/upload", methods=["POST"])
+def upload_slip(order_id):
+    file = request.files.get("slip")
+    if not file or not file.filename:
+        return "กรุณาแนบสลิป", 400
+        
+    file_bytes = file.read()
+    ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'jpg'
+    filename = f"slip_{order_id}_{uuid.uuid4().hex[:8]}.{ext}"
+    
+    supabase = get_supabase()
+    
+    # Upload to Supabase Storage
+    try:
+        supabase.storage.from_("slips").upload(filename, file_bytes, {"content-type": file.content_type})
+        slip_url = supabase.storage.from_("slips").get_public_url(filename)
+        
+        # Update order status
+        supabase.table("orders").update({
+            "payment_status": "verifying",
+            "slip_url": slip_url,
+            "status": "waiting" # กลับเข้าคิว
+        }).eq("id", order_id).execute()
+        
+    except Exception as e:
+        print("Error uploading slip:", e)
+        return "เกิดข้อผิดพลาดในการอัปโหลดสลิป กรุณาลองใหม่", 500
+        
+    status_url = url_for("user.status_page", order_id=order_id, _external=True)
+    from app.utils import make_qr_base64
+    qr_b64 = make_qr_base64(status_url)
+    
+    return render_template(
+        "ticket.html",
+        order_code=request.form.get("order_code", ""),
+        order_id=order_id,
+        qr_b64=qr_b64,
+        status_url=status_url,
     )

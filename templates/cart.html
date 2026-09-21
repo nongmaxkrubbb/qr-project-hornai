@@ -28,6 +28,13 @@
     <label class="label">หมายเหตุ เช่น ไม่เผ็ด (ไม่บังคับ)</label>
     <input type="text" name="note"
            style="width:100%; padding:12px; border-radius:8px; border:1px solid #ddd; margin:6px 0 14px;">
+           
+    <label class="label" style="display:block; margin-bottom:8px;">วิธีชำระเงิน *</label>
+    <div style="display:flex; gap:16px; margin-bottom:16px;">
+      <label style="cursor:pointer;"><input type="radio" name="payment_method" value="promptpay" checked> สแกนพร้อมเพย์</label>
+      <label style="cursor:pointer;"><input type="radio" name="payment_method" value="cash"> เงินสดหน้าร้าน</label>
+    </div>
+
     <button class="btn" type="submit">✅ ยืนยันสั่งอาหาร</button>
   </form>
   {% else %}

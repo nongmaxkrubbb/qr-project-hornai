@@ -68,6 +68,17 @@ def make_qr_base64(url):
     return base64.b64encode(buf.getvalue()).decode("ascii")
 
 
+import promptpay
+
+def generate_promptpay_qr_base64(promptpay_id, amount):
+    """สร้าง QR Code พร้อมเพย์แบบระบุจำนวนเงิน แล้วคืนค่าเป็น Base64"""
+    payload = promptpay.qrcode.generate_payload(promptpay_id, amount)
+    img = qrcode.make(payload)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+
 def iso(dt):
     """คืนค่า string (เพราะ Supabase-py คืนเป็น string อยู่แล้ว)"""
     if dt is None:
