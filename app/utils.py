@@ -68,11 +68,39 @@ def make_qr_base64(url):
     return base64.b64encode(buf.getvalue()).decode("ascii")
 
 
-import promptpay
+def _crc16(data: str) -> str:
+    crc = 0xFFFF
+    for char in data:
+        crc ^= ord(char) << 8
+        for _ in range(8):
+            if crc & 0x8000:
+                crc = (crc << 1) ^ 0x1021
+            else:
+                crc <<= 1
+    return f"{crc & 0xFFFF:04X}"
 
 def generate_promptpay_qr_base64(promptpay_id, amount):
-    """สร้าง QR Code พร้อมเพย์แบบระบุจำนวนเงิน แล้วคืนค่าเป็น Base64"""
-    payload = promptpay.qrcode.generate_payload(promptpay_id, amount)
+    """สร้าง QR Code พร้อมเพย์แบบระบุจำนวนเงินด้วย Pure Python แล้วคืนค่าเป็น Base64"""
+    payload = "000201010212"
+    promptpay_id = promptpay_id.replace("-", "").replace(" ", "")
+    if len(promptpay_id) == 10 and promptpay_id.startswith("0"):
+        formatted_id = "0066" + promptpay_id[1:]
+        merchant_info = f"0016A0000006770101110113{formatted_id}"
+    elif len(promptpay_id) == 13:
+        merchant_info = f"0016A0000006770101110213{promptpay_id}"
+    else:
+        merchant_info = f"0016A0000006770101110315{promptpay_id}"
+        
+    payload += f"29{len(merchant_info):02}{merchant_info}"
+    payload += "5802TH5303764"
+    
+    if amount > 0:
+        amount_str = f"{amount:.2f}"
+        payload += f"54{len(amount_str):02}{amount_str}"
+        
+    payload += "6304"
+    payload += _crc16(payload)
+    
     img = qrcode.make(payload)
     buf = io.BytesIO()
     img.save(buf, format="PNG")
