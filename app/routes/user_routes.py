@@ -161,9 +161,9 @@ def checkout():
         "student_name": student_name,
         "room_no": room_no or None,
         "note": note or None,
-        "status": "waiting" if payment_method == "cash" else "pending_payment",
+        "status": "waiting",
         "payment_method": payment_method,
-        "payment_status": "pending",
+        "payment_status": "pending" if payment_method == "promptpay" else "completed",
         "total_price": total
     }
     res_order = supabase.table("orders").insert(order_data).execute()
