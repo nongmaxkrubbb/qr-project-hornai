@@ -13,8 +13,17 @@ def next_order_number(branch_id, prefix="Q"):
     return f"{prefix}{n:03d}"
 
 
+import time
+_cache_avg_prep = {}
+
 def avg_prep_seconds(branch_id):
     """เวลาเตรียมอาหารเฉลี่ยของ 20 ออเดอร์ล่าสุดที่เสร็จแล้ว (waiting -> ready)"""
+    now = time.time()
+    if branch_id in _cache_avg_prep:
+        val, ts = _cache_avg_prep[branch_id]
+        if now - ts < 60:  # cache for 60 seconds
+            return val
+
     supabase = get_supabase()
     res = supabase.table("orders").select("created_at, ready_at") \
         .eq("branch_id", branch_id).not_.is_("ready_at", "null") \
@@ -26,7 +35,6 @@ def avg_prep_seconds(branch_id):
         
     total, n = 0, 0
     for row in rows:
-        # Supabase Python ส่งกลับมาเป็น ISO string เช่น 2026-09-17T01:40:26+00:00
         try:
             created_at = datetime.fromisoformat(row["created_at"].replace("Z", "+00:00"))
             ready_at = datetime.fromisoformat(row["ready_at"].replace("Z", "+00:00"))
@@ -37,16 +45,18 @@ def avg_prep_seconds(branch_id):
         except Exception:
             pass
             
-    return int(total / n) if n else 600
+    avg = int(total / n) if n else 600
+    _cache_avg_prep[branch_id] = (avg, now)
+    return avg
 
 
 def orders_ahead(order):
     """จำนวนออเดอร์ที่ยังไม่เสร็จและมาก่อนออเดอร์นี้ (ใช้บอกตำแหน่งคิว)"""
     supabase = get_supabase()
-    res = supabase.table("orders").select("*", count="exact") \
+    res = supabase.table("orders").select("id", count="exact") \
         .eq("branch_id", order["branch_id"]) \
         .in_("status", ["waiting", "preparing"]) \
-        .lt("id", order["id"]).execute()
+        .lt("id", order["id"]).limit(1).execute()
     
     return res.count if res.count is not None else 0
 

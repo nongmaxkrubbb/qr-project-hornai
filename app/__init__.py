@@ -36,7 +36,7 @@ def create_app():
     from app.database import init_app as init_db_app
     init_db_app(app)
 
-    from app.routes.user_routes import user_bp
+    from app.routes.user_routes import user_bp, api_order_status
     from app.routes.admin_routes import admin_bp
 
     app.register_blueprint(user_bp)
@@ -45,6 +45,9 @@ def create_app():
     # rate limit เฉพาะจุดเสี่ยง (ไม่ครอบทั้งแอปเพื่อไม่ให้หน้าติดตามคิว polling ทุก 5 วิ โดนบล็อก)
     limiter.limit("10 per minute")(admin_bp)
     limiter.limit("20 per minute")(user_bp)
+    
+    # ยกเว้น rate limit สำหรับหน้าดึงสถานะ Real-time เพื่อไม่ให้ผู้ใช้งานโดนบล็อกเวลาอัปเดตพร้อมกัน
+    limiter.exempt(api_order_status)
 
     @app.route("/healthz")
     def healthz():

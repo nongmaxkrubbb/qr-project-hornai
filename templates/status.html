@@ -79,11 +79,15 @@ const supabaseUrl = "{{ config.SUPABASE_URL }}";
 const supabaseKey = "{{ config.SUPABASE_ANON_KEY }}";
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
+let refreshTimer = null;
 supabaseClient
   .channel('public:orders')
   .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, payload => {
-    // โหลดซ้ำทุกครั้งที่มีออเดอร์ใดๆ ขยับ เพื่อให้อัปเดตคิว (orders_ahead) ได้แม่นยำ
-    refreshStatus();
+    // หน่วงเวลาแบบสุ่ม 500-2500ms เพื่อกระจายโหลด ไม่ให้มือถือทุกเครื่องยิง Request ถล่มเซิร์ฟเวอร์พร้อมกัน (Broadcast Storm)
+    if (refreshTimer) clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => {
+        refreshStatus();
+    }, Math.random() * 2000 + 500);
   })
   .subscribe();
 </script>

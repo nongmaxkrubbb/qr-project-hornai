@@ -141,27 +141,16 @@ def kitchen(branch_id):
         return redirect(url_for("admin.admin"))
     branch = res.data[0]
 
-    def orders_by_status(status, order_dir="asc"):
-        is_desc = order_dir.lower() == "desc"
-        res_orders = supabase.table("orders").select("*").eq("branch_id", branch_id).eq("status", status).order("created_at", desc=is_desc).execute()
-        orders = res_orders.data
-        if not orders:
-            return []
-            
-        order_ids = [o["id"] for o in orders]
-        res_items = supabase.table("order_items").select("*").in_("order_id", order_ids).order("id").execute()
-        
-        items_by_order = {}
-        for item in res_items.data:
-            items_by_order.setdefault(item["order_id"], []).append(item)
-            
-        for o in orders:
-            o["items"] = items_by_order.get(o["id"], [])
-        return orders
+    # ดึงข้อมูล orders และ order_items ใน Request เดียว
+    res = supabase.table("orders").select("*, order_items(*)").eq("branch_id", branch_id).in_("status", ["waiting", "preparing", "ready"]).order("created_at").execute()
+    
+    all_orders = res.data
+    for o in all_orders:
+        o["items"] = o.get("order_items", [])
 
-    waiting = orders_by_status("waiting")
-    preparing = orders_by_status("preparing")
-    ready = orders_by_status("ready")
+    waiting = [o for o in all_orders if o["status"] == "waiting"]
+    preparing = [o for o in all_orders if o["status"] == "preparing"]
+    ready = [o for o in all_orders if o["status"] == "ready"]
 
     return render_template(
         "admin_room.html", branch=branch, waiting=waiting, preparing=preparing, ready=ready, iso=iso

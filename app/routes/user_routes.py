@@ -17,11 +17,25 @@ def _save_cart(cart):
     session.modified = True
 
 
+_cache_first_branch = None
+_cache_first_branch_time = 0
+
 def _first_active_branch():
+    global _cache_first_branch, _cache_first_branch_time
+    import time
+    if _cache_first_branch and time.time() - _cache_first_branch_time < 300:
+        return _cache_first_branch
+        
     supabase = get_supabase()
     res = supabase.table("branches").select("id").eq("is_active", True).order("created_at").limit(1).execute()
-    return res.data[0]["id"] if res.data else None
+    branch_id = res.data[0]["id"] if res.data else None
+    
+    _cache_first_branch = branch_id
+    _cache_first_branch_time = time.time()
+    return branch_id
 
+
+_cache_menus = {}
 
 @user_bp.route("/")
 @user_bp.route("/b/<branch_id>")
@@ -31,15 +45,23 @@ def index(branch_id=None):
         if not branch_id:
             return "ยังไม่มีร้านที่ตั้งค่าไว้ในระบบ", 500
 
-    supabase = get_supabase()
-    res = supabase.table("menu_items").select("*") \
-        .eq("branch_id", branch_id).eq("is_available", True) \
-        .order("category").order("name").execute()
-    items = res.data
-
-    categories = {}
-    for item in items:
-        categories.setdefault(item["category"], []).append(item)
+    import time
+    now = time.time()
+    
+    if branch_id in _cache_menus and now - _cache_menus[branch_id]['time'] < 60:
+        categories = _cache_menus[branch_id]['data']
+    else:
+        supabase = get_supabase()
+        res = supabase.table("menu_items").select("*") \
+            .eq("branch_id", branch_id).eq("is_available", True) \
+            .order("category").order("name").execute()
+        items = res.data
+    
+        categories = {}
+        for item in items:
+            categories.setdefault(item["category"], []).append(item)
+            
+        _cache_menus[branch_id] = {'time': now, 'data': categories}
 
     cart = _get_cart()
     cart_count = sum(cart.values())
@@ -178,15 +200,13 @@ def status_page(order_id):
 @user_bp.route("/api/order_status/<int:order_id>")
 def api_order_status(order_id):
     supabase = get_supabase()
-    res = supabase.table("orders").select("*").eq("id", order_id).execute()
+    res = supabase.table("orders").select("*, order_items(item_name, unit_price, quantity)").eq("id", order_id).execute()
     order = res.data[0] if res.data else None
     
     if not order:
         return jsonify({"error": "ไม่พบออเดอร์นี้"}), 404
 
-    res_items = supabase.table("order_items").select("item_name, unit_price, quantity") \
-        .eq("order_id", order_id).order("id").execute()
-    items = res_items.data
+    items = order.get("order_items", [])
 
     ahead = orders_ahead(order) if order["status"] in ("waiting", "preparing") else 0
     avg_secs = avg_prep_seconds(order["branch_id"])
