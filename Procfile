@@ -1,1 +1,2 @@
-web: gunicorn run:app
+web: gunicorn -c gunicorn.conf.py run:app
+worker: flask --app run run-worker --loop

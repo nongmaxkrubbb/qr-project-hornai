@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+{% block title %}จัดการบัญชีผู้ใช้และรหัสผ่าน · Super Admin · คิวอิ่ม{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">CREDENTIALS & ACCESS CONTROL</p>
+    <h1>จัดการบัญชีผู้ใช้และรหัสผ่าน</h1>
+    <p class="muted">สร้างรหัสผ่านใหม่ กำหนดบทบาทสิทธิ์ (Roles) และรีเซ็ตรหัสผ่านสำหรับเจ้าหน้าที่ทุกระดับ</p>
+  </div>
+</div>
+
+{% set active_tab = 'staff' %}
+{% include '_super_nav.html' %}
+
+<div class="split" style="margin-top: 24px;">
+  <!-- Staff List -->
+  <section>
+    <div class="card flat table-wrap">
+      <h2>รายชื่อเจ้าหน้าที่ทั้งหมด ({{ staff_list|length }})</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>อีเมล / ชื่อผู้ใช้</th>
+            <th>บทบาท (Role)</th>
+            <th>สังกัด</th>
+            <th>สถานะ</th>
+            <th style="text-align: right;">การจัดการ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in staff_list %}
+          <tr>
+            <td>
+              <strong>{{ s.username }}</strong>
+              {% if s.id == current_user_id %}
+              <span class="badge" style="background: #e8f2e8; color: var(--green); font-size: 10px;">บัญชีของคุณ</span>
+              {% endif %}
+              <div class="muted tiny">รหัส: {{ s.id }}</div>
+            </td>
+            <td>
+              {% if s.role == 'super_admin' %}
+              <span class="badge" style="background:#fce8e6; color:#a73535; border-color:#fad2cf; font-weight:700;">Super Admin</span>
+              {% elif s.role == 'org_admin' %}
+              <span class="badge" style="background:#fdf2e9; color:#b05a1e; border-color:#fae1ce; font-weight:700;">Org Admin</span>
+              {% elif s.role == 'branch_admin' %}
+              <span class="badge" style="background:#e8f4fd; color:#186594; border-color:#d0e8fa; font-weight:700;">Branch Admin</span>
+              {% else %}
+              <span class="badge" style="background:#eaf5ea; color:#24543b; border-color:#cbe5cd;">Staff (ครัว/ร้าน)</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if s.role == 'super_admin' %}
+              <span class="muted small">ทุกองค์กร / ทุกสาขา</span>
+              {% elif s.role == 'org_admin' %}
+              <span class="small">องค์กร: {{ org_map.get(s.organization_id, 'ไม่ระบุ') }}</span>
+              {% else %}
+              <span class="small">สาขา: {{ branch_map.get(s.branch_id, 'ไม่ระบุ') }}</span>
+              <div class="muted tiny">องค์กร: {{ org_map.get(s.organization_id, '-') }}</div>
+              {% endif %}
+            </td>
+            <td>
+              {% if s.id == current_user_id %}
+              <span class="badge status-ready">เปิดใช้งาน</span>
+              {% else %}
+              <form action="{{ url_for('admin.super_toggle_staff_active', staff_id=s.id) }}" method="post" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="badge {% if s.is_active|default(true) %}status-ready{% else %}status-cancelled{% endif %}" style="cursor:pointer; border:none;" title="กดเพื่อสลับสถานะเปิด/ระงับใช้งาน">
+                  {{ 'เปิดใช้งาน' if s.is_active|default(true) else 'ระงับใช้งาน' }}
+                </button>
+              </form>
+              {% endif %}
+            </td>
+            <td style="text-align: right;">
+              <details style="display:inline-block; text-align: left;">
+                <summary class="btn btn-plain btn-small" style="cursor:pointer;">รีเซ็ตรหัส</summary>
+                <div style="position: absolute; right: 24px; background: white; padding: 18px; border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); z-index: 50; width: 320px; margin-top: 8px;">
+                  <form action="{{ url_for('admin.super_reset_password', staff_id=s.id) }}" method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <p style="font-weight: 700; margin-bottom: 8px;">ตั้งรหัสผ่านใหม่</p>
+                    <p class="muted small" style="margin-bottom: 12px;">สำหรับ {{ s.username }}</p>
+                    <div class="field">
+                      <label for="new_pwd_{{ s.id }}">รหัสผ่านใหม่ (อย่างน้อย 8 ตัวอักษร)</label>
+                      <input type="password" name="new_password" id="new_pwd_{{ s.id }}" class="control" required minlength="8" placeholder="••••••••">
+                    </div>
+                    <div class="flex" style="justify-content: flex-end; gap: 8px;">
+                      <button type="submit" class="btn btn-small btn-danger">ยืนยันเปลี่ยนรหัส</button>
+                    </div>
+                  </form>
+                </div>
+              </details>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" class="empty">ยังไม่มีผู้ใช้งานในระบบ</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Create New User/Staff Form -->
+  <aside id="new-staff">
+    <section class="card">
+      <h2>+ สร้างบัญชีผู้ใช้ใหม่</h2>
+      <p class="muted small">สร้างรหัสผ่านและผูกสิทธิ์เข้ากับร้านหรือองค์กร</p>
+
+      <form action="{{ url_for('admin.super_create_staff') }}" method="post" id="createStaffForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="field">
+          <label for="staff_email">อีเมล / ชื่อผู้ใช้ (Login Email) *</label>
+          <input type="email" name="email" id="staff_email" class="control" placeholder="staff@example.com" required maxlength="254">
+        </div>
+
+        <div class="field">
+          <label for="staff_password">ตั้งรหัสผ่านเริ่มต้น *</label>
+          <input type="password" name="password" id="staff_password" class="control" placeholder="อย่างน้อย 8 ตัวอักษร" minlength="8" required>
+        </div>
+
+        <div class="field">
+          <label for="staff_role">บทบาท / สิทธิ์ (Role) *</label>
+          <select name="role" id="staff_role" class="control" required onchange="onRoleChange()">
+            <option value="staff" selected>Staff (พนักงานประจำร้าน/ครัว)</option>
+            <option value="branch_admin">Branch Admin (ผู้จัดการร้าน/สาขา)</option>
+            <option value="org_admin">Org Admin (ผู้ดูแลระดับองค์กร)</option>
+            <option value="super_admin">Super Admin (ผู้ดูแลสูงสุดทั้งระบบ)</option>
+          </select>
+        </div>
+
+        <div class="field" id="field_org">
+          <label for="staff_org">สังกัดองค์กร *</label>
+          <select name="organization_id" id="staff_org" class="control" onchange="filterBranches()">
+            <option value="">-- เลือกองค์กร --</option>
+            {% for org in organizations %}
+            <option value="{{ org.id }}">{{ org.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="field" id="field_branch">
+          <label for="staff_branch">สังกัดสาขา / ร้านอาหาร *</label>
+          <select name="branch_id" id="staff_branch" class="control">
+            <option value="">-- เลือกสาขา --</option>
+            {% for b in branches %}
+            <option value="{{ b.id }}" data-org="{{ b.organization_id }}">{{ b.name }} ({{ org_map.get(b.organization_id, '-') }})</option>
+            {% endfor %}
+          </select>
+          <small class="help">พนักงานและผู้จัดการสาขาต้องระบุสาขาประจำ</small>
+        </div>
+
+        <button type="submit" class="btn btn-block" style="margin-top: 18px;">สร้างบัญชีเจ้าหน้าที่</button>
+      </form>
+    </section>
+  </aside>
+</div>
+
+<script>
+function onRoleChange() {
+  const role = document.getElementById("staff_role").value;
+  const fieldOrg = document.getElementById("field_org");
+  const fieldBranch = document.getElementById("field_branch");
+  const selectOrg = document.getElementById("staff_org");
+  const selectBranch = document.getElementById("staff_branch");
+
+  if (role === "super_admin") {
+    fieldOrg.style.display = "none";
+    fieldBranch.style.display = "none";
+    selectOrg.removeAttribute("required");
+    selectBranch.removeAttribute("required");
+  } else if (role === "org_admin") {
+    fieldOrg.style.display = "block";
+    fieldBranch.style.display = "none";
+    selectOrg.setAttribute("required", "required");
+    selectBranch.removeAttribute("required");
+  } else {
+    fieldOrg.style.display = "block";
+    fieldBranch.style.display = "block";
+    selectOrg.setAttribute("required", "required");
+    selectBranch.setAttribute("required", "required");
+  }
+}
+
+function filterBranches() {
+  const selectedOrg = document.getElementById("staff_org").value;
+  const branchSelect = document.getElementById("staff_branch");
+  const options = branchSelect.querySelectorAll("option");
+
+  options.forEach(opt => {
+    if (!opt.value) return; // keep placeholder
+    const org = opt.getAttribute("data-org");
+    if (!selectedOrg || org === selectedOrg) {
+      opt.style.display = "block";
+    } else {
+      opt.style.display = "none";
+      if (opt.selected) {
+        branchSelect.value = "";
+      }
+    }
+  });
+}
+
+// Initialize on load
+document.addEventListener("DOMContentLoaded", () => {
+  onRoleChange();
+});
+</script>
+{% endblock %}

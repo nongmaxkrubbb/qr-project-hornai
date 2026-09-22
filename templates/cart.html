@@ -1,46 +1,8 @@
-{% extends "base.html" %}
-{% block title %}ตะกร้าของคุณ{% endblock %}
+{% extends 'base.html' %}
+{% block title %}ตะกร้า · {{ branch.name }}{% endblock %}
 {% block content %}
-<div class="card">
-  <h1>🛒 ตะกร้าของคุณ</h1>
-
-  {% if lines %}
-  {% for line in lines %}
-  <div class="row">
-    <span>{{ line.item.name }} x{{ line.qty }}</span>
-    <span>{{ "%.0f"|format(line.subtotal) }} บาท</span>
-  </div>
-  {% endfor %}
-  <div class="row" style="font-weight:600; font-size:1.1rem;">
-    <span>รวมทั้งหมด</span>
-    <span>{{ "%.0f"|format(total) }} บาท</span>
-  </div>
-
-  <form action="{{ url_for('user.checkout') }}" method="post" style="margin-top:20px;">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="branch_id" value="{{ branch_id }}">
-    <label class="label">ชื่อของคุณ *</label>
-    <input type="text" name="student_name" required
-           style="width:100%; padding:12px; border-radius:8px; border:1px solid #ddd; margin:6px 0 14px;">
-    <label class="label">เลขห้อง (ไม่บังคับ)</label>
-    <input type="text" name="room_no"
-           style="width:100%; padding:12px; border-radius:8px; border:1px solid #ddd; margin:6px 0 14px;">
-    <label class="label">หมายเหตุ เช่น ไม่เผ็ด (ไม่บังคับ)</label>
-    <input type="text" name="note"
-           style="width:100%; padding:12px; border-radius:8px; border:1px solid #ddd; margin:6px 0 14px;">
-           
-    <label class="label" style="display:block; margin-bottom:8px;">วิธีชำระเงิน *</label>
-    <div style="display:flex; gap:16px; margin-bottom:16px;">
-      <label style="cursor:pointer;"><input type="radio" name="payment_method" value="promptpay" checked> สแกนพร้อมเพย์</label>
-      <label style="cursor:pointer;"><input type="radio" name="payment_method" value="cash"> เงินสดหน้าร้าน</label>
-    </div>
-
-    <button class="btn" type="submit">✅ ยืนยันสั่งอาหาร</button>
-  </form>
-  {% else %}
-  <p class="label">ตะกร้าว่างอยู่ ลองเลือกเมนูก่อนนะ</p>
-  {% endif %}
-</div>
-
-<a href="{{ url_for('user.index', branch_id=branch_id) }}" class="btn btn-secondary">กลับไปเลือกเมนู</a>
+<div class="page-heading"><div><p class="eyebrow">CHECK YOUR ORDER</p><h1>มื้อนี้ของคุณ</h1><p class="muted">{{ branch.name }} · สั่งและชำระเงินแยกต่อร้าน</p></div><a class="btn btn-plain btn-small" href="{{ url_for('user.index', branch_id=branch.id) if branch.is_active|default(true) else url_for('user.directory') }}">{% if branch.is_active|default(true) %}+ เลือกเพิ่ม{% else %}เลือกร้านอื่น{% endif %}</a></div>
+{% set can_preorder = branch.is_active|default(true) and branch.is_accepting_orders and requested_slots %}{% set blocked = namespace(value=not accepting and not can_preorder) %}{% for line in lines %}{% if not line.item.is_available %}{% set blocked.value = true %}{% endif %}{% endfor %}{% if lines %}{% if blocked.value %}<div class="notice error">{% if not accepting %}ร้านยังไม่เปิดรับออเดอร์ในขณะนี้ กรุณากลับมาสั่งเมื่อร้านเปิดรับ{% else %}บางเมนูปิดขายแล้ว กรุณาลบเมนูที่ปิดขายก่อนยืนยันออเดอร์{% endif %}</div>{% endif %}<div class="split"><section class="card"><h2>รายการอาหาร <span class="muted small">{{ cart_count }} ชิ้น</span></h2>{% for line in lines %}<article class="cart-line"><div class="flex between"><h3>{{ line.item.name }}{% if not line.item.is_available %} <span class="badge status-cancelled">ปิดขายแล้ว</span>{% endif %}</h3><strong>{{ '%.2f'|format(line.subtotal|float) }} ฿</strong></div>{% if line.options %}<p class="small muted">{% for option in line.options %}{{ option.name }}{% if not loop.last %}, {% endif %}{% endfor %}</p>{% endif %}{% if line.note %}<p class="small">หมายเหตุ: {{ line.note }}</p>{% endif %}<form action="{{ url_for('user.cart_update') }}" method="post" class="quantity"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="branch_id" value="{{ branch.id }}"><input type="hidden" name="line_key" value="{{ line.key }}"><label for="qty-{{ loop.index }}" class="small">จำนวน</label><input id="qty-{{ loop.index }}" type="number" name="quantity" min="0" max="20" value="{{ line.qty }}" required aria-label="จำนวน {{ line.item.name }}"><button class="btn btn-secondary btn-small" type="submit">บันทึก</button><button class="btn btn-danger btn-small" type="submit" name="remove" value="1" data-remove-line>ลบ</button></form></article>{% endfor %}<form method="post" action="{{ url_for('user.cart_clear') }}" class="spacer-top"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="branch_id" value="{{ branch.id }}"><button class="btn btn-plain btn-small" type="submit">ล้างตะกร้าเพื่อเปลี่ยนร้าน</button></form></section>
+<section class="card sticky-summary"><h2>พร้อมสั่งแล้ว</h2><div class="notice"><strong>รับอาหารที่ {{ branch.pickup_point or 'หน้าร้าน' }}</strong><br><span class="small">{% if accepting %}รอประมาณ {{ eta.min }}–{{ eta.max }} นาที หลังร้านรับออเดอร์{% else %}ร้านยังไม่เปิด กรุณาเลือกเวลารับล่วงหน้าด้านล่าง{% endif %}</span></div><form action="{{ url_for('user.checkout') }}" method="post" data-checkout><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="branch_id" value="{{ branch.id }}"><input type="hidden" name="idempotency_key" value="{{ idempotency_key }}"><div class="form-grid"><div class="field"><label for="student_name">ชื่อสำหรับรับอาหาร</label><input id="student_name" name="student_name" autocomplete="given-name" maxlength="100" required></div><div class="field"><label for="room_no">ห้อง / จุดอ้างอิง <span class="muted">(ไม่บังคับ)</span></label><input id="room_no" name="room_no" maxlength="40" autocomplete="off"></div></div>{% if requested_slots %}<div class="field"><label for="requested_for">เวลารับอาหาร</label><select id="requested_for" name="requested_for" {% if not accepting %}required{% endif %}>{% if accepting %}<option value="">เร็วที่สุด ตามคิวปัจจุบัน</option>{% else %}<option value="">เลือกเวลารับล่วงหน้า</option>{% endif %}{% for slot in requested_slots %}<option value="{{ slot.iso }}">{{ slot.label }}</option>{% endfor %}</select><span class="help">เป็นเวลาที่ต้องการ ร้านอาจปรับตามจำนวนออเดอร์</span></div>{% endif %}<div class="field"><label for="order_note">หมายเหตุถึงร้าน <span class="muted">(ไม่บังคับ)</span></label><textarea id="order_note" name="note" maxlength="300" placeholder="เช่น มีผู้แพ้อาหาร กรุณาสอบถามร้านก่อนสั่ง"></textarea></div><fieldset class="field" style="border:0;padding:0"><legend class="field-label">วิธีชำระเงิน</legend>{% if branch.promptpay_id %}<label class="choice choice-card"><input type="radio" name="payment_method" value="promptpay" checked required><span><strong>โอนผ่าน PromptPay</strong><br><span class="small muted">แนบสลิปและรอร้านตรวจสอบก่อนเข้าคิว</span></span></label>{% endif %}<label class="choice choice-card spacer-top"><input type="radio" name="payment_method" value="cash" {% if not branch.promptpay_id %}checked{% endif %} required><span><strong>เงินสดที่ร้าน</strong><br><span class="small muted">{% if branch.allow_cash_before_payment %}ชำระกับพนักงานเมื่อไปรับอาหาร{% else %}ชำระกับพนักงานก่อนร้านเริ่มทำอาหาร{% endif %}</span></span></label></fieldset><div class="row total"><span>รวมทั้งหมด</span><span>{{ '%.2f'|format(total|float) }} ฿</span></div><p class="small muted">ตรวจรายการและจุดรับก่อนยืนยัน สามารถยกเลิกได้ตามสถานะที่ร้านอนุญาต</p><button class="btn btn-block" type="submit" {% if blocked.value %}disabled data-permanent-disabled{% endif %}>ยืนยันสั่งอาหาร · {{ '%.2f'|format(total|float) }} ฿</button><p class="help center">เก็บหน้าสถานะไว้สำหรับรับอาหาร</p></form></section></div>
+{% else %}<section class="card empty"><div class="empty-icon" aria-hidden="true">＋</div><h2>ตะกร้ายังว่างอยู่</h2><p>เลือกอาหารจาก {{ branch.name }} เพื่อเริ่มสั่ง</p><a class="btn" href="{{ url_for('user.index', branch_id=branch.id) if branch.is_active|default(true) else url_for('user.directory') }}">กลับไปเลือกเมนู</a></section>{% endif %}
 {% endblock %}

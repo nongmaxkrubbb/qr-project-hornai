@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% block title %}จัดการองค์กรและเครือข่าย · Super Admin · คิวอิ่ม{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">ORGANIZATION MANAGEMENT</p>
+    <h1>จัดการองค์กรและแบรนด์</h1>
+    <p class="muted">จัดการกลุ่มเครือข่ายร้านอาหารเพื่อจัดสรรสาขาและผู้ดูแลระดับองค์กร (Org Admin)</p>
+  </div>
+</div>
+
+{% set active_tab = 'organizations' %}
+{% include '_super_nav.html' %}
+
+<div class="split" style="margin-top: 24px;">
+  <!-- Organizations List -->
+  <section>
+    <div class="card flat table-wrap">
+      <h2>องค์กรทั้งหมด ({{ organizations|length }})</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>ชื่อองค์กร / แบรนด์</th>
+            <th>จำนวนสาขา</th>
+            <th>จำนวนเจ้าหน้าที่</th>
+            <th style="text-align: right;">แก้ไข</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for org in organizations %}
+          <tr>
+            <td>
+              <strong>{{ org.name }}</strong>
+              <div class="muted tiny">รหัส: {{ org.id }}</div>
+            </td>
+            <td>
+              <span class="badge">{{ branch_counts.get(org.id, 0) }} สาขา</span>
+            </td>
+            <td>
+              <span class="badge">{{ staff_counts.get(org.id, 0) }} บัญชี</span>
+            </td>
+            <td style="text-align: right;">
+              <details style="display:inline-block; text-align: left;">
+                <summary class="btn btn-plain btn-small" style="cursor:pointer;">แก้ไขชื่อ</summary>
+                <div style="position: absolute; right: 24px; background: white; padding: 16px; border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); z-index: 50; width: 300px; margin-top: 8px;">
+                  <form action="{{ url_for('admin.super_edit_organization', org_id=org.id) }}" method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="field">
+                      <label for="edit_name_{{ org.id }}">ชื่อองค์กรใหม่</label>
+                      <input type="text" name="name" id="edit_name_{{ org.id }}" class="control" value="{{ org.name }}" required maxlength="150">
+                    </div>
+                    <div class="flex" style="justify-content: flex-end; gap: 8px;">
+                      <button type="submit" class="btn btn-small">บันทึก</button>
+                    </div>
+                  </form>
+                </div>
+              </details>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" class="empty">ยังไม่มีองค์กรในระบบ กรุณาสร้างองค์กรแรกด้านข้าง</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Create New Organization Form -->
+  <aside id="new-org">
+    <section class="card">
+      <h2>+ เพิ่มองค์กรใหม่</h2>
+      <p class="muted small">สร้างองค์กรเพื่อใช้เป็นศูนย์กลางในการเปิดสาขาและมอบสิทธิ์ผู้ดูแล</p>
+
+      <form action="{{ url_for('admin.super_create_organization') }}" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="field">
+          <label for="org_name">ชื่อองค์กร / แบรนด์ / กลุ่มร้าน *</label>
+          <input type="text" name="name" id="org_name" class="control" placeholder="เช่น เครือหอพักนักศึกษา, แบรนด์ชาบูชะม้อย" maxlength="150" required>
+        </div>
+
+        <button type="submit" class="btn btn-block" style="margin-top: 18px;">บันทึกองค์กร</button>
+      </form>
+    </section>
+  </aside>
+</div>
+{% endblock %}

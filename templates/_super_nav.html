@@ -1,0 +1,11 @@
+<nav class="admin-nav" aria-label="เมนู Super Admin">
+  <a class="btn {% if active_tab == 'dashboard' %}btn-secondary{% else %}btn-plain{% endif %} btn-small" href="{{ url_for('admin.super_dashboard') }}">📊 ภาพรวมระบบ</a>
+  <a class="btn {% if active_tab == 'branches' %}btn-secondary{% else %}btn-plain{% endif %} btn-small" href="{{ url_for('admin.super_branches') }}">🏪 จัดการสาขา / ร้านอาหาร</a>
+  <a class="btn {% if active_tab == 'organizations' %}btn-secondary{% else %}btn-plain{% endif %} btn-small" href="{{ url_for('admin.super_organizations') }}">🏢 จัดการองค์กร</a>
+  <a class="btn {% if active_tab == 'staff' %}btn-secondary{% else %}btn-plain{% endif %} btn-small" href="{{ url_for('admin.super_staff') }}">👥 จัดการบัญชีผู้ใช้ & รหัสผ่าน</a>
+  <a class="btn btn-plain btn-small" href="{{ url_for('admin.admin') }}">← กลับหน้าร้านของฉัน</a>
+  <form action="{{ url_for('admin.admin_logout') }}" method="post" style="display:inline;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-plain btn-small" type="submit">ออกจากระบบ</button>
+  </form>
+</nav>

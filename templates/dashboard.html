@@ -1,28 +1,6 @@
-{% extends "base.html" %}
-{% block title %}Dashboard{% endblock %}
-{% block content %}
-<div class="card">
-  <h1>📊 สรุปสถิติวันนี้</h1>
-  <div class="row"><span class="label">ออเดอร์ทั้งหมดวันนี้</span><strong>{{ total_today }}</strong></div>
-  <div class="row"><span class="label">รับอาหารแล้ว</span><strong>{{ completed_today }}</strong></div>
-  <div class="row"><span class="label">ยกเลิก</span><strong>{{ cancelled_today }}</strong></div>
-  <div class="row"><span class="label">กำลังทำ/รอคิวตอนนี้</span><strong>{{ active_now }}</strong></div>
-  <div class="row"><span class="label">เวลาทำอาหารเฉลี่ย (นาที)</span><strong>{{ avg_prep_minutes }}</strong></div>
-  <div class="row"><span class="label">ยอดขายวันนี้ (บาท)</span><strong>{{ "%.0f"|format(revenue_today) }}</strong></div>
-</div>
-
-<div class="card">
-  <h2>เมนูขายดีวันนี้</h2>
-  <table>
-    <tr><th>เมนู</th><th>จำนวน</th></tr>
-    {% for it in top_items %}
-    <tr>
-      <td>{{ it.name }}</td>
-      <td>{{ it.qty }}</td>
-    </tr>
-    {% endfor %}
-  </table>
-</div>
-
-<a href="{{ url_for('admin.admin') }}" class="btn btn-secondary">กลับหน้าครัว</a>
+{% extends 'base.html' %}{% block title %}รายงานร้าน · {{ branch.name }}{% endblock %}{% block container_class %}wide{% endblock %}{% block content %}<div class="page-heading"><div><p class="eyebrow">DAILY PERFORMANCE</p><h1>วันนี้ร้านเป็นอย่างไร</h1><p class="muted">{{ branch.name }} · วันที่ตามเวลาท้องถิ่นของร้าน</p></div><form method="get" action="{{ url_for('admin.dashboard') }}"><input type="hidden" name="branch_id" value="{{ branch.id }}"><div class="flex"><label for="date" class="small">วันที่</label><input class="control" id="date" name="date" type="date" value="{{ selected_date }}"><button class="btn" type="submit">ดูรายงาน</button></div></form></div>{% include '_admin_nav.html' %}
+<div class="metrics"><article class="metric"><p>ออเดอร์ทั้งหมด</p><strong>{{ metrics.get('orders_total',0) }}</strong><small>เสร็จ {{ metrics.get('orders_completed',0) }} · กำลังทำ / รอ {{ metrics.get('orders_active',0) }}</small></article><article class="metric"><p>รับเงินจริงวันที่เลือก</p><strong>{{ '%.2f'|format(metrics.get('receipts_today',0)|float) }}</strong><small>บาท · รวมออเดอร์ที่สั่งวันอื่นและมาจ่ายวันนี้</small></article><article class="metric"><p>รอรับเงิน</p><strong>{{ '%.2f'|format(metrics.get('pending_total',0)|float) }}</strong><small>{{ metrics.get('payment_pending_count',0) }} ออเดอร์รอยืนยัน</small></article><article class="metric"><p>เวลารอหน้าร้านค่ากลาง</p><strong>{{ '%.1f'|format(metrics.get('counter_wait_minutes_p50',0)|float) if metrics.get('counter_wait_minutes_p50') is not none else '—' }}</strong><small>นาที · จากแจ้งมาถึงจนรับอาหาร</small></article></div>
+<div class="split"><section class="card"><h2>รับเงินและกระทบยอด</h2><div class="row"><span class="muted">เงินรับจริงในวันที่เลือก</span><strong>{{ '%.2f'|format(metrics.get('receipts_today',0)|float) }} ฿</strong></div><div class="row"><span class="muted">คืนเงินจริงในวันที่เลือก</span><strong>{{ '%.2f'|format(metrics.get('refunds_today',0)|float) }} ฿</strong></div><p class="help">รายการด้านล่างเป็นกลุ่มออเดอร์ที่สร้างในวันที่เลือก อาจรับหรือคืนเงินคนละวัน</p><div class="row"><span class="muted">ยอดสั่งอาหารรวม</span><strong>{{ '%.2f'|format(metrics.get('gross_sales',0)|float) }} ฿</strong></div><div class="row"><span class="muted">ยืนยันรับเงินแล้ว</span><strong>{{ '%.2f'|format(metrics.get('paid_total',0)|float) }} ฿</strong></div><div class="row"><span class="muted">ยอดที่ยังต้องคืนเงิน</span><strong>{{ '%.2f'|format(metrics.get('refund_due_total',0)|float) }} ฿</strong></div><div class="row"><span class="muted">คืนเงินแล้ว</span><strong>{{ '%.2f'|format(metrics.get('refunded_total',0)|float) }} ฿</strong></div><div class="row"><span class="muted">ยอดเดิมรอตรวจสอบ</span><strong>{{ '%.2f'|format(metrics.get('legacy_unverified_total',0)|float) }} ฿</strong></div><p class="help spacer-top">ตรวจยอดกับเงินสดและรายการเดินบัญชีของร้านทุกวัน ยอดรอรับและรอคืนยังไม่ถือว่าปิดยอด</p></section><section class="card"><h2>คุณภาพการให้บริการ</h2><div class="row"><span class="muted">ยกเลิกออเดอร์</span><strong>{{ metrics.get('orders_cancelled',0) }}</strong></div><div class="row"><span class="muted">ปัญหาที่บันทึก</span><strong>{{ metrics.get('incidents_count',0) }}</strong></div><div class="row"><span class="muted">ลูกค้าแจ้งมาถึง</span><strong>{{ metrics.get('arrivals_count',0) }}</strong></div><div class="row"><span class="muted">รอเริ่มทำ · 90% ของออเดอร์</span><strong>{{ '%.1f'|format(metrics.get('wait_minutes_p90')|float) if metrics.get('wait_minutes_p90') is not none else '—' }} นาที</strong></div><div class="row"><span class="muted">คลาดเคลื่อนเวลานัด · ค่ากลาง</span><strong>{{ '%.1f'|format(metrics.get('eta_error_minutes_p50')|float) if metrics.get('eta_error_minutes_p50') is not none else '—' }} นาที</strong></div><p class="help spacer-top">ค่า “—” หมายถึงยังไม่มีข้อมูลเพียงพอ ช่วงเวลา 90% ช่วยเห็นการรอนานที่ค่าเฉลี่ยอาจซ่อนอยู่</p></section></div>
+<section class="card"><h2>เวลาในแต่ละขั้นตอน</h2><div class="table-wrap"><table><thead><tr><th>ขั้นตอน</th><th>ค่ากลาง (นาที)</th><th>90% ของออเดอร์ (นาที)</th></tr></thead><tbody>{% for label,key in [('เวลาเตรียมอาหาร','prep_minutes'),('เวลารอรับหลังอาหารพร้อม','pickup_minutes'),('เวลารอเริ่มทำ','wait_minutes'),('เวลารอหน้าร้านหลังแจ้งมาถึง','counter_wait_minutes')] %}<tr><td>{{ label }}</td><td>{{ '%.1f'|format(metrics.get(key ~ '_p50')|float) if metrics.get(key ~ '_p50') is not none else '—' }}</td><td>{{ '%.1f'|format(metrics.get(key ~ '_p90')|float) if metrics.get(key ~ '_p90') is not none else '—' }}</td></tr>{% endfor %}</tbody></table></div></section>
+<section class="card"><h2>เมนูขายดี</h2><div class="table-wrap"><table><thead><tr><th>เมนู</th><th>จำนวน</th><th>มูลค่าอาหาร</th></tr></thead><tbody>{% for item in top_items %}<tr><td>{{ item.item_name or item.name }}</td><td>{{ item.quantity or item.qty }}</td><td>{{ '%.2f'|format(item.revenue|default(0)|float) }} ฿</td></tr>{% else %}<tr><td colspan="3" class="muted">ยังไม่มีข้อมูลเมนูในวันที่เลือก</td></tr>{% endfor %}</tbody></table></div></section>
 {% endblock %}

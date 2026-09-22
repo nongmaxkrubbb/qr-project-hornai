@@ -1,94 +1,20 @@
-{% extends "base.html" %}
-{% block title %}สถานะออเดอร์{% endblock %}
+{% extends 'base.html' %}
+{% block title %}ออเดอร์ {{ order.order_code }} · คิวอิ่ม{% endblock %}
+{% block container_class %}narrow{% endblock %}
 {% block content %}
-<div class="card" style="text-align:center;">
-  <p class="label">ออเดอร์ของคุณ</p>
-  <div class="queue-number" id="order_code">-</div>
-  <span class="status-badge" id="status_badge">กำลังโหลด...</span>
-
-  <div style="margin-top:20px; text-align:left;" id="items_wrap">
-    <div class="row"><span class="label">รออยู่ก่อนหน้า</span><span id="orders_ahead">-</span> ออเดอร์</div>
-    <div class="row"><span class="label">เวลารอโดยประมาณ</span><span id="eta">-</span> นาที</div>
-    <div class="row"><span class="label">ยอดรวม</span><span id="total_price">-</span> บาท</div>
-  </div>
-
-  <div id="order_items" style="margin-top:16px; text-align:left;"></div>
-
-  <p class="label" style="margin-top:16px;">หน้านี้จะอัปเดตสถานะแบบเรียลไทม์ — เปิดค้างไว้ได้ จะแจ้งเตือนให้เองเมื่ออาหารเสร็จ</p>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-const orderId = {{ order_id }};
-const badgeText = {
-  waiting: "รอคิว",
-  preparing: "กำลังทำ",
-  ready: "พร้อมรับแล้ว! 🎉",
-  completed: "รับอาหารแล้ว",
-  cancelled: "ถูกยกเลิก"
-};
-let notifiedReady = false;
-
-if ("Notification" in window && Notification.permission === "default") {
-  Notification.requestPermission();
-}
-
-function notifyReady(orderCode) {
-  if (notifiedReady) return;
-  notifiedReady = true;
-  if ("Notification" in window && Notification.permission === "granted") {
-    new Notification("อาหารพร้อมแล้ว! 🍜", {
-      body: `ออเดอร์ ${orderCode} พร้อมรับที่ร้านแล้ว`,
-    });
-  }
-  if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-}
-
-async function refreshStatus() {
-  try {
-    const res = await fetch(`/api/order_status/${orderId}`);
-    if (!res.ok) return;
-    const data = await res.json();
-
-    document.getElementById("order_code").textContent = data.order_code;
-    document.getElementById("orders_ahead").textContent = data.orders_ahead;
-    document.getElementById("eta").textContent = data.eta_minutes;
-    document.getElementById("total_price").textContent = data.total_price.toFixed(0);
-
-    const badge = document.getElementById("status_badge");
-    badge.textContent = badgeText[data.status] || data.status;
-    badge.className = "status-badge status-" + data.status;
-
-    const itemsWrap = document.getElementById("order_items");
-    itemsWrap.innerHTML = "<h2>รายการอาหาร</h2>" + data.items.map(
-      i => `<div class="row"><span>${i.name} x${i.quantity}</span><span>${(i.unit_price * i.quantity).toFixed(0)} บาท</span></div>`
-    ).join("");
-
-    if (data.status === "ready") {
-      notifyReady(data.order_code);
-    }
-  } catch (e) {
-    console.error(e);
-  }
-}
-
-refreshStatus();
-
-// === Supabase Realtime ===
-const supabaseUrl = "{{ config.SUPABASE_URL }}";
-const supabaseKey = "{{ config.SUPABASE_ANON_KEY }}";
-const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
-
-let refreshTimer = null;
-supabaseClient
-  .channel('public:orders')
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, payload => {
-    // หน่วงเวลาแบบสุ่ม 500-2500ms เพื่อกระจายโหลด ไม่ให้มือถือทุกเครื่องยิง Request ถล่มเซิร์ฟเวอร์พร้อมกัน (Broadcast Storm)
-    if (refreshTimer) clearTimeout(refreshTimer);
-    refreshTimer = setTimeout(() => {
-        refreshStatus();
-    }, Math.random() * 2000 + 500);
-  })
-  .subscribe();
-</script>
+{% set status_names = {'pending_payment':'รอชำระเงิน / ตรวจสลิป','waiting':'ร้านรับออเดอร์แล้ว · รอคิว','preparing':'ครัวกำลังทำอาหาร','ready':'อาหารพร้อมรับแล้ว','completed':'รับอาหารเรียบร้อย','cancelled':'ออเดอร์ถูกยกเลิก'} %}
+{% set descriptions = {'pending_payment':'โอนและส่งสลิปเพื่อให้ร้านตรวจสอบก่อนเริ่มเตรียมอาหาร','waiting':'ร้านรับออเดอร์แล้ว รอสักครู่ก่อนถึงคิวของคุณ','preparing':'กำลังเตรียมมื้อนี้ให้คุณ ดูจุดรับอาหารด้านล่างได้เลย','ready':'แสดงหมายเลขออเดอร์กับพนักงานที่จุดรับอาหาร','completed':'ขอบคุณที่สั่งอาหาร ขอให้อิ่มอร่อยกับมื้อนี้','cancelled':'หากคุณชำระเงินแล้ว กรุณาตรวจสถานะคืนเงินหรือติดต่อร้าน'} %}
+{% set payment_names = {'pending':'รอชำระ','cash_due':'รอรับเงินสด','verifying':'รอตรวจสลิป','paid':'ชำระแล้ว','rejected':'กรุณาตรวจสลิป','refund_due':'รอคืนเงิน','refunded':'คืนเงินแล้ว','legacy_unverified':'ร้านกำลังตรวจยอดเดิม'} %}
+{% set steps = ['waiting','preparing','ready','completed'] %}
+{% set state = initial_status %}
+<div class="page-heading"><div><p class="eyebrow">YOUR ORDER</p><h1>ออเดอร์ของคุณ</h1><p class="muted">{{ branch.name }}</p></div><button class="btn btn-plain btn-small" type="button" data-print>พิมพ์ / เก็บบัตรคิว</button></div>
+<section class="card center"><p class="muted no-margin">ใช้หมายเลขนี้รับอาหารที่ร้าน</p><div id="order-code" class="queue-number">{{ order.order_code }}</div><span id="status-badge" class="badge status-{{ order.status }}">{{ status_names.get(order.status,'กำลังตรวจสอบ') }}</span><p id="status-description" class="small muted spacer-top">{% if order.status == 'pending_payment' and order.payment_status == 'verifying' %}ส่งสลิปแล้ว กำลังรอร้านตรวจสอบ ไม่ต้องโอนซ้ำ{% else %}{{ descriptions.get(order.status,'กรุณาติดต่อร้านหากสถานะไม่อัปเดต') }}{% endif %}</p><ol class="stepper" aria-label="ขั้นตอนเตรียมอาหาร">{% for step,title in [('waiting','รับออเดอร์'),('preparing','กำลังทำ'),('ready','พร้อมรับ'),('completed','รับแล้ว')] %}<li data-step="{{ step }}" {% if order.status in steps and steps.index(step) <= steps.index(order.status) %}class="active"{% endif %} {% if order.status == step %}aria-current="step"{% endif %}>{{ title }}</li>{% endfor %}</ol></section>
+<div id="status-error" class="notice error" role="alert" hidden></div>
+<section class="card"><div class="flex between"><div><p class="small muted no-margin">เวลารอโดยประมาณ</p><p id="eta" class="eta no-margin">{% if order.status == 'completed' %}รับอาหารแล้ว{% elif order.status == 'ready' %}พร้อมแล้ว{% elif order.status == 'cancelled' %}—{% elif order.status == 'pending_payment' %}หลังร้านยืนยันรับเงิน{% else %}{{ state.eta_min }}–{{ state.eta_max }} นาที{% endif %}</p></div><div class="small muted">ก่อนหน้าคุณ<br><strong id="orders-ahead">{{ state.orders_ahead }}</strong> ออเดอร์</div></div><div class="row"><span class="muted">จุดรับอาหาร</span><strong id="pickup-point">{{ state.branch.pickup_point or 'หน้าร้าน' }}</strong></div><div class="row" id="requested-row" {% if not order.requested_for %}hidden{% endif %}><span class="muted">เวลาที่ขอรับ</span><span id="requested-for">{{ order.requested_for|local_datetime(branch.timezone) }}</span></div><div class="row" id="promised-row" {% if not order.promised_ready_at %}hidden{% endif %}><span class="muted">คาดว่าจะพร้อม</span><span id="promised-at">{{ order.promised_ready_at|local_datetime(branch.timezone) }}</span></div><p id="connection" class="connection" role="status">สถานะล่าสุดเมื่อเปิดหน้านี้</p><button id="refresh-status" class="btn btn-plain btn-small" type="button">ตรวจสอบตอนนี้</button><noscript><p class="help">รีเฟรชหน้านี้เพื่อตรวจสถานะล่าสุด หรือเปิด JavaScript เพื่อให้อัปเดตอัตโนมัติ</p></noscript></section>
+<section class="card"><div class="flex between"><h2>รายละเอียดออเดอร์</h2><span id="payment-badge" class="badge status-{{ order.payment_status }}">{{ payment_names.get(order.payment_status,'กำลังตรวจสอบยอด') }}</span></div><p id="payment-reason" class="notice error small" {% if not state.payment_reason %}hidden{% endif %}>{{ state.payment_reason }}</p><ul id="order-items" class="order-items">{% for item in state['items'] %}<li><div class="flex between"><strong>{{ item.name }} × {{ item.quantity }}</strong><span>{{ '%.2f'|format(item.unit_price|float * item.quantity|int) }} ฿</span></div>{% if item.options %}<div class="small muted">{% for option in item.options %}{{ option.name if option is mapping else option }}{% if not loop.last %}, {% endif %}{% endfor %}</div>{% endif %}{% if item.note %}<div class="small muted">หมายเหตุ: {{ item.note }}</div>{% endif %}</li>{% endfor %}</ul><div class="row total"><span>ยอดรวม</span><strong><span id="total-price">{{ '%.2f'|format(order.total_price|float) }}</span> ฿</strong></div><a id="payment-link" class="btn btn-block spacer-top" href="{{ payment_url }}" {% if order.payment_method != 'promptpay' or order.payment_status not in ['pending','rejected','verifying'] or order.status != 'pending_payment' %}hidden{% endif %}>ชำระเงิน / ดูการตรวจสลิป</a><p class="small muted" id="cash-notice" {% if order.payment_method != 'cash' or order.payment_status in ['paid','refund_due','refunded'] or order.status in ['cancelled','completed'] %}hidden{% endif %}>เงินสด: กรุณาชำระกับพนักงานที่ร้าน{% if not branch.allow_cash_before_payment %}ก่อนเริ่มเตรียมอาหาร{% else %}ก่อนรับอาหาร{% endif %}</p></section>
+<section class="card" id="customer-actions"><form id="arrive-form" action="{{ url_for('user.customer_action', order_id=order_id) }}" method="post" {% if order.status not in ['waiting','preparing','ready'] or order.arrived_at %}hidden{% endif %}><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="token" value="{{ token }}"><input type="hidden" name="action" value="arrive"><button class="btn btn-block" type="submit">ฉันมาถึงจุดรับแล้ว</button><p class="help">แจ้งให้ร้านรู้ว่าคุณมาถึง ยังต้องรอจนอาหารพร้อมรับ</p></form><p id="arrived-message" class="notice success" {% if not order.arrived_at or order.status in ['cancelled','completed'] %}hidden{% endif %}>แจ้งร้านว่ามาถึงแล้ว รอเรียกหมายเลขออเดอร์ของคุณได้เลย</p><details id="cancel-details" {% if not state.can_cancel %}hidden{% endif %}><summary class="small muted">ต้องการยกเลิกออเดอร์</summary><form action="{{ url_for('user.customer_action', order_id=order_id) }}" method="post" class="spacer-top"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="token" value="{{ token }}"><input type="hidden" name="action" value="cancel"><div class="field"><label for="cancel-reason">เหตุผลที่ยกเลิก</label><input id="cancel-reason" name="reason" maxlength="300" required placeholder="เช่น ไม่สะดวกรับแล้ว"></div><button class="btn btn-danger btn-block" type="submit">ยืนยันยกเลิกออเดอร์นี้</button><p class="help">หากชำระแล้ว ร้านจะตรวจสอบและดำเนินการคืนเงินให้</p></form></details><form id="reorder-form" action="{{ url_for('user.reorder', order_id=order_id) }}" method="post" {% if order.status not in ['completed','cancelled'] %}hidden{% endif %}><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="token" value="{{ token }}"><button class="btn btn-block" type="submit">สั่งเมนูเดิมอีกครั้ง</button><p class="help">ใช้ราคาและเมนูที่เปิดขายในปัจจุบัน ตรวจรายการในตะกร้าก่อนสั่ง</p></form></section>
+<section class="card no-print" id="notification-card" {% if order.status in ['completed','cancelled'] %}hidden{% endif %}><h2>ให้เราเตือนเมื่อพร้อมรับ</h2><p id="notification-help" class="small muted">กดอนุญาตเพื่อรับการแจ้งเตือนจากเบราว์เซอร์</p><button id="enable-notifications" class="btn btn-secondary btn-block" type="button">เปิดการแจ้งเตือน</button><details class="small muted spacer-top"><summary>เพิ่มไว้บนหน้าจอโทรศัพท์</summary><p class="spacer-top">iPhone / iPad: เปิดด้วย Safari แตะปุ่มแชร์ แล้วเลือก “เพิ่มไปยังหน้าจอโฮม” จากนั้นเปิดแอปที่เพิ่มไว้เพื่ออนุญาตการแจ้งเตือน ส่วน Android ให้เลือก “ติดตั้งแอป” หรือ “เพิ่มลงในหน้าจอหลัก” ในเมนูเบราว์เซอร์</p><p>ความสามารถในการแจ้งเตือนขึ้นกับอุปกรณ์ เบราว์เซอร์ และการเปิดใช้งานของร้าน</p></details></section>
+<details class="card center" data-print-expand><summary>QR สำหรับเปิดออเดอร์นี้อีกครั้ง</summary><div class="qr-wrap"><img src="data:image/png;base64,{{ qr_b64 }}" alt="QR ติดตามออเดอร์ {{ order.order_code }}"></div><p class="small muted">เก็บไว้สำหรับตัวคุณเอง ผู้ที่มี QR นี้สามารถเปิดและจัดการออเดอร์ได้</p></details><a class="btn btn-plain btn-block" href="{{ url_for('user.directory') }}">กลับไปเลือกร้าน</a>
+<script id="status-config" type="application/json">{{ {'statusUrl':status_api_url,'orderId':order_id,'token':token,'pushPublicKey':push_public_key,'subscribeUrl':url_for('user.push_subscribe',order_id=order_id),'paymentMethod':order.payment_method,'timezone':branch.timezone,'initialStatus':initial_status}|tojson }}</script>
 {% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='status.js') }}" defer></script>{% endblock %}

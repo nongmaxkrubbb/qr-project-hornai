@@ -1,0 +1,57 @@
+name: queue-im
+
+x-app: &app
+  build: .
+  image: queue-im:local
+  env_file: .env
+  environment:
+    PORT: "8000"
+    RATELIMIT_STORAGE_URI: redis://redis:6379/0
+    SESSION_REDIS_URL: redis://redis:6379/1
+  depends_on:
+    - redis
+  restart: unless-stopped
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp
+
+services:
+  web:
+    <<: *app
+    ports:
+      - "127.0.0.1:${PORT:-5001}:8000"
+    command: ["gunicorn", "-c", "gunicorn.conf.py", "run:app"]
+
+  worker:
+    <<: *app
+    command: ["flask", "--app", "run", "run-worker", "--loop"]
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+
+  proxy:
+    image: caddy:2-alpine
+    profiles: ["https"]
+    environment:
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - web
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+  caddy-data:
+  caddy-config:

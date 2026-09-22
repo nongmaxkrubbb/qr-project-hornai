@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% block title %}จัดการสาขาและร้านอาหาร · Super Admin · คิวอิ่ม{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">STORE MANAGEMENT</p>
+    <h1>จัดการสาขาและร้านอาหาร</h1>
+    <p class="muted">เปิดสาขาใหม่ ควบคุมสถานะร้าน และเข้าถึงการตั้งค่าของทุกร้านในระบบ</p>
+  </div>
+</div>
+
+{% set active_tab = 'branches' %}
+{% include '_super_nav.html' %}
+
+<div class="split" style="margin-top: 24px;">
+  <!-- Branches List -->
+  <section>
+    <div class="card flat table-wrap">
+      <h2>รายการสาขาทั้งหมด ({{ branches|length }})</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>ชื่อสาขา / ร้าน</th>
+            <th>องค์กร</th>
+            <th>สถานะร้าน</th>
+            <th>รับออเดอร์</th>
+            <th style="text-align: right;">การจัดการ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in branches %}
+          <tr>
+            <td>
+              <strong>{{ b.name }}</strong>
+              <div class="muted tiny">
+                {{ b.campus or 'ไม่ระบุพื้นที่' }} · จุดรับ: {{ b.pickup_point or 'หน้าร้าน' }}
+              </div>
+            </td>
+            <td>
+              <span class="small">{{ org_map.get(b.organization_id, 'ไม่ระบุ') }}</span>
+            </td>
+            <td>
+              <form action="{{ url_for('admin.super_toggle_branch_active', branch_id=b.id) }}" method="post" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="badge {% if b.is_active|default(true) %}status-ready{% else %}status-cancelled{% endif %}" style="cursor:pointer; border:none;" title="กดเพื่อสลับสถานะเปิด/ปิดใช้งาน">
+                  {{ 'เปิดใช้งาน' if b.is_active|default(true) else 'ปิดใช้งาน' }}
+                </button>
+              </form>
+            </td>
+            <td>
+              <form action="{{ url_for('admin.super_toggle_branch_orders', branch_id=b.id) }}" method="post" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="badge {% if b.is_accepting_orders %}status-ready{% else %}status-waiting{% endif %}" style="cursor:pointer; border:none;" title="กดเพื่อพักหรือเปิดรับออเดอร์" {% if not b.is_active|default(true) %}disabled{% endif %}>
+                  {{ 'เปิดรับ' if b.is_accepting_orders else 'พักรับ' }}
+                </button>
+              </form>
+            </td>
+            <td style="text-align: right;">
+              <div class="flex" style="justify-content: flex-end; gap: 6px; flex-wrap: wrap;">
+                <a class="btn btn-plain btn-small" href="{{ url_for('admin.kitchen', branch_id=b.id) }}">บอร์ดครัว</a>
+                <a class="btn btn-plain btn-small" href="{{ url_for('admin.branch_settings', branch_id=b.id) }}">ตั้งค่า</a>
+                <a class="btn btn-plain btn-small" href="{{ url_for('admin.menu_manage', branch_id=b.id) }}">เมนู</a>
+                <a class="btn btn-plain btn-small" href="{{ url_for('admin.branch_qr', branch_id=b.id) }}">QR</a>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" class="empty">ยังไม่มีสาขาในระบบ กรุณาสร้างสาขาแรกด้านข้าง</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Create New Branch Form -->
+  <aside id="new-branch">
+    <section class="card">
+      <h2>+ เปิดสาขา / ร้านใหม่</h2>
+      <p class="muted small">สร้างร้านอาหารใหม่ภายใต้องค์กร เพื่อให้ร้านเริ่มตั้งค่าเมนูและรับออเดอร์</p>
+
+      {% if not organizations %}
+      <div class="notice error">
+        ยังไม่มีองค์กรในระบบ กรุณา <a href="{{ url_for('admin.super_organizations') }}">สร้างองค์กร</a> ก่อนเปิดสาขา
+      </div>
+      {% else %}
+      <form action="{{ url_for('admin.super_create_branch') }}" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="field">
+          <label for="organization_id">สังกัดองค์กร / เครือข่าย *</label>
+          <select name="organization_id" id="organization_id" class="control" required>
+            <option value="">-- เลือกองค์กร --</option>
+            {% for org in organizations %}
+            <option value="{{ org.id }}">{{ org.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="name">ชื่อสาขา / ชื่อร้านอาหาร *</label>
+          <input type="text" name="name" id="name" class="control" placeholder="เช่น ครัวน้องมายด์ สาขา 1" maxlength="150" required>
+        </div>
+
+        <div class="field">
+          <label for="campus">วิทยาเขต / มหาวิทยาลัย / พื้นที่</label>
+          <input type="text" name="campus" id="campus" class="control" placeholder="เช่น หอใน มข., ศูนย์อาหารกลาง" maxlength="150">
+        </div>
+
+        <div class="field">
+          <label for="pickup_point">จุดรับอาหารหน้าร้าน</label>
+          <input type="text" name="pickup_point" id="pickup_point" class="control" placeholder="เช่น ช่องรับออเดอร์ 1, เคาน์เตอร์ซ้าย" maxlength="250">
+        </div>
+
+        <div class="field">
+          <label for="timezone">เขตเวลา (Timezone)</label>
+          <input type="text" name="timezone" id="timezone" class="control" value="Asia/Bangkok" required>
+        </div>
+
+        <button type="submit" class="btn btn-block" style="margin-top: 18px;">ยืนยันเปิดสาขาใหม่</button>
+      </form>
+      {% endif %}
+    </section>
+  </aside>
+</div>
+{% endblock %}

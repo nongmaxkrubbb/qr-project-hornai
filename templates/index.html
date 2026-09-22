@@ -1,32 +1,11 @@
-{% extends "base.html" %}
-{% block title %}สั่งอาหาร - ร้านอาหารหอใน{% endblock %}
+{% extends 'base.html' %}
+{% block title %}{{ branch.name }} · คิวอิ่ม{% endblock %}
 {% block content %}
-<div class="card">
-  <h1>🍜 ร้านอาหารหอใน</h1>
-  <p class="label">เลือกเมนูแล้วกด "+" เพื่อเพิ่มลงตะกร้า</p>
-
-  {% for category, items in categories.items() %}
-  <h2 class="category-title">{{ category }}</h2>
-  {% for item in items %}
-  <div class="menu-item">
-    <div>
-      <div class="menu-item-name">{{ item.name }}</div>
-      <div class="menu-item-price">{{ "%.0f"|format(item.price) }} บาท</div>
-    </div>
-    <form action="{{ url_for('user.cart_add') }}" method="post">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <input type="hidden" name="menu_item_id" value="{{ item.id }}">
-      <input type="hidden" name="branch_id" value="{{ branch_id }}">
-      <button class="qty-btn" type="submit" aria-label="เพิ่ม {{ item.name }}">+</button>
-    </form>
-  </div>
-  {% endfor %}
-  {% else %}
-  <p class="label">ยังไม่มีเมนูวันนี้</p>
-  {% endfor %}
-</div>
-
-<a href="{{ url_for('user.cart_view', branch_id=branch_id) }}" class="btn cart-fab">
-  🛒 ดูตะกร้า{% if cart_count %} ({{ cart_count }}){% endif %}
-</a>
+{% set can_preorder = branch.is_active|default(true) and branch.is_accepting_orders and branch.slot_capacity|default(0)|int > 0 %}
+<section class="hero"><p class="eyebrow">{{ branch.campus or 'ร้านใกล้คุณ' }}{% if branch.building %} / {{ branch.building }}{% endif %}</p><h1>{{ branch.name }}</h1><p class="lead">{{ branch.description or 'เลือกเมนูโปรด สั่งไว้ แล้วมารับที่ร้านเมื่ออาหารพร้อม' }}</p><div class="hero-footer"><span class="badge">{% if accepting %}● รับออเดอร์{% elif can_preorder %}รับสั่งล่วงหน้า{% else %}พักรับออเดอร์{% endif %}</span><span class="badge">รอประมาณ {{ eta.min }}–{{ eta.max }} นาที</span><span class="badge">จุดรับ: {{ branch.pickup_point or 'หน้าร้าน' }}</span></div>{% if opening_label %}<p class="muted small spacer-top no-margin">{% if branch.opening_time == branch.closing_time %}เปิด 24 ชั่วโมง{% else %}{{ opening_label }}{% endif %}</p>{% endif %}</section>
+{% if not accepting %}<div class="notice" role="status">{% if can_preorder %}ขณะนี้อยู่นอกเวลาเปิดร้าน คุณสามารถเลือกอาหารและเลือกเวลารับล่วงหน้าในตะกร้าได้{% else %}ร้านพักรับออเดอร์อยู่ในขณะนี้{% if branch.pause_reason %} · {{ branch.pause_reason }}{% endif %} คุณยังดูเมนูได้ และกลับมาสั่งเมื่อร้านเปิดรับอีกครั้ง{% endif %}</div>{% endif %}
+{% if cart_branch_id and cart_branch_id != branch.id %}<div class="notice">คุณมีอาหารจากร้านอื่นอยู่ในตะกร้า กรุณาจัดการตะกร้าเดิมก่อนเปลี่ยนร้าน <a href="{{ url_for('user.cart_view', branch_id=cart_branch_id) }}">ไปที่ตะกร้าเดิม</a></div>{% endif %}
+<nav class="tab-nav" aria-label="หมวดอาหาร">{% for category in categories %}<a href="#category-{{ loop.index }}">{{ category }}</a>{% endfor %}</nav>
+{% for category, items in categories.items() %}<section aria-labelledby="category-{{ loop.index }}"><h2 class="category-title" id="category-{{ loop.index }}">{{ category }}</h2><div class="menu-grid">{% for item in items %}<article class="card menu-card">{% if item.image_url %}<img class="menu-photo" src="{{ item.image_url }}" alt="{{ item.name }}" loading="lazy" referrerpolicy="no-referrer">{% endif %}<h3>{{ item.name }}</h3><p class="description">{{ item.description or '' }}</p><form method="post" action="{{ url_for('user.cart_add') }}" data-cart-add><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="branch_id" value="{{ branch.id }}"><input type="hidden" name="menu_item_id" value="{{ item.id }}"><input type="hidden" name="quantity" value="1">{% if item.options %}<details><summary>เลือกเพิ่มเติม / ระบุความต้องการ</summary><p class="help">เลือกได้ไม่เกิน 10 ตัวเลือกต่อเมนู</p>{% for option in item.options %}<label class="choice"><input type="checkbox" name="option_ids" value="{{ option.id }}">{{ option.name }} (+{{ '%.2f'|format(option.price|float) }} ฿)</label>{% endfor %}<div class="field"><label for="note-{{ item.id }}">หมายเหตุสำหรับเมนูนี้</label><input id="note-{{ item.id }}" name="note" maxlength="120" placeholder="เช่น ไม่เผ็ด ไม่ใส่ผัก"></div></details>{% else %}<details><summary>ระบุความต้องการ</summary><div class="field"><label for="note-{{ item.id }}">หมายเหตุสำหรับเมนูนี้</label><input id="note-{{ item.id }}" name="note" maxlength="120" placeholder="เช่น ไม่เผ็ด ไม่ใส่ผัก"></div></details>{% endif %}<div class="flex between"><span class="price">{{ '%.2f'|format(item.price|float) }} ฿</span><button class="btn" type="submit" {% if not accepting and not can_preorder %}disabled{% endif %} aria-label="เพิ่ม {{ item.name }} ลงตะกร้า">+ เพิ่ม</button></div></form></article>{% endfor %}</div></section>{% else %}<div class="card empty"><div class="empty-icon" aria-hidden="true">◌</div><h2>ยังไม่มีเมนูเปิดขาย</h2><p>ร้านกำลังเตรียมเมนู ลองกลับมาใหม่ภายหลัง</p></div>{% endfor %}
+<a class="btn cart-bar" href="{{ url_for('user.cart_view', branch_id=branch.id) }}"><span><span class="count-pill" data-cart-count>{{ cart_count }}</span> ดูตะกร้า</span><span><span data-cart-total>{{ '%.2f'|format(cart_total|float) }}</span> ฿ <span aria-hidden="true">→</span></span></a>
 {% endblock %}

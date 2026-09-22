@@ -28,3 +28,5 @@ Thumbs.db
 
 # Nested unzip duplicate folder
 qr-project-hornai-main/
+# Local database test dependencies
+node_modules/

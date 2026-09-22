@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% block title %}ภาพรวมระบบ · Super Admin · คิวอิ่ม{% endblock %}
+
+{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">SUPER ADMIN WORKSPACE</p>
+    <h1>ศูนย์ควบคุมระบบส่วนกลาง</h1>
+    <p class="muted">ภาพรวมร้านอาหารทั้งหมด สถิติ และการบริหารจัดการบัญชีผู้ใช้ในระบบ</p>
+  </div>
+</div>
+
+{% set active_tab = 'dashboard' %}
+{% include '_super_nav.html' %}
+
+<section class="metrics">
+  <div class="metric">
+    <p>สาขา / ร้านอาหารทั้งหมด</p>
+    <strong>{{ metrics.total_branches }}</strong>
+    <small>เปิดใช้งาน {{ metrics.active_branches }} สาขา (รับออเดอร์อยู่ {{ metrics.accepting_branches }})</small>
+  </div>
+  <div class="metric">
+    <p>องค์กร / แบรนด์ในระบบ</p>
+    <strong>{{ metrics.total_organizations }}</strong>
+    <small>เครือข่ายร้านอาหารทั้งหมด</small>
+  </div>
+  <div class="metric">
+    <p>บัญชีผู้ใช้ / เจ้าหน้าที่</p>
+    <strong>{{ metrics.total_staff }}</strong>
+    <small>Super: {{ metrics.role_counts.super_admin }} · Org: {{ metrics.role_counts.org_admin }} · Branch: {{ metrics.role_counts.branch_admin }} · Staff: {{ metrics.role_counts.staff }}</small>
+  </div>
+  <div class="metric">
+    <p>ยอดขายที่ชำระแล้ว (รวมทุกสาขา)</p>
+    <strong>฿{{ "%.2f"|format(metrics.paid_sales) }}</strong>
+    <small>จากออเดอร์ทั้งหมด {{ metrics.total_orders }} รายการ (สำเร็จ {{ metrics.completed_orders }})</small>
+  </div>
+</section>
+
+<div class="page-heading" style="margin-top: 32px;">
+  <div>
+    <h2>สาขา / ร้านอาหารล่าสุด</h2>
+    <p class="muted small">แสดงสาขาทั้งหมดในระบบและสถานะการเปิดรับออเดอร์</p>
+  </div>
+  <div class="flex wrap">
+    <a class="btn btn-small" href="{{ url_for('admin.super_branches') }}#new-branch">+ เปิดสาขาใหม่</a>
+    <a class="btn btn-secondary btn-small" href="{{ url_for('admin.super_staff') }}#new-staff">+ สร้างบัญชีผู้ใช้</a>
+  </div>
+</div>
+
+<div class="card flat table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>ชื่อร้าน / สาขา</th>
+        <th>องค์กร</th>
+        <th>พื้นที่ / มหาวิทยาลัย</th>
+        <th>สถานะร้าน</th>
+        <th>การรับออเดอร์</th>
+        <th style="text-align: right;">เครื่องมือด่วน</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in branches %}
+      <tr>
+        <td>
+          <strong>{{ b.name }}</strong>
+          <br><span class="muted tiny">จุดรับ: {{ b.pickup_point or '-' }}</span>
+        </td>
+        <td>{{ org_map.get(b.organization_id, 'ไม่ระบุ') }}</td>
+        <td>{{ b.campus or '-' }}</td>
+        <td>
+          <span class="badge {% if b.is_active|default(true) %}status-ready{% else %}status-cancelled{% endif %}">
+            {{ 'เปิดใช้งาน' if b.is_active|default(true) else 'ปิดใช้งาน' }}
+          </span>
+        </td>
+        <td>
+          <span class="badge {% if b.is_accepting_orders %}status-ready{% else %}status-waiting{% endif %}">
+            {{ 'รับออเดอร์' if b.is_accepting_orders else 'พักรับ' }}
+          </span>
+        </td>
+        <td style="text-align: right;">
+          <div class="flex" style="justify-content: flex-end; gap: 6px;">
+            <a class="btn btn-plain btn-small" href="{{ url_for('admin.kitchen', branch_id=b.id) }}" title="เปิดบอร์ดครัว">บอร์ดครัว</a>
+            <a class="btn btn-plain btn-small" href="{{ url_for('admin.branch_settings', branch_id=b.id) }}" title="ตั้งค่าร้าน">ตั้งค่า</a>
+            <a class="btn btn-plain btn-small" href="{{ url_for('admin.menu_manage', branch_id=b.id) }}" title="จัดการเมนู">เมนู</a>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6" class="empty">ยังไม่มีสาขาในระบบ</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

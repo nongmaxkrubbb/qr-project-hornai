@@ -1,8 +1,12 @@
 Flask==3.0.3
-supabase
+supabase==2.31.0
 qrcode==7.4.2
-Pillow
+Pillow==12.3.0
 python-dotenv==1.0.1
 Flask-WTF==1.2.1
 Flask-Limiter==3.8.0
+Flask-Session==0.8.0
+cachelib==0.13.0
+redis==5.2.1
+pywebpush==2.0.3
 gunicorn==22.0.0

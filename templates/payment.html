@@ -1,25 +1,14 @@
-{% extends "base.html" %}
-{% block title %}ชำระเงินออเดอร์ {{ order.order_code }}{% endblock %}
+{% extends 'base.html' %}
+{% block title %}ชำระเงิน {{ order.order_code }} · คิวอิ่ม{% endblock %}
+{% block container_class %}narrow{% endblock %}
 {% block content %}
-<div class="card" style="text-align:center;">
-  <h1>ชำระเงิน</h1>
-  <p class="label">ยอดที่ต้องชำระ: <strong>{{ "%.0f"|format(order.total_price) }} บาท</strong></p>
-  
-  <div class="qr-wrap">
-    <img src="data:image/png;base64,{{ qr_b64 }}" alt="PromptPay QR">
-  </div>
-  <p class="label">พร้อมเพย์: {{ promptpay_id }}</p>
-  
-  <hr style="border:0; border-top:1px dashed #cbd5e1; margin: 24px 0;">
-  
-  <h2>อัปโหลดสลิป</h2>
-  <form action="{{ url_for('user.upload_slip', order_id=order.id) }}" method="post" enctype="multipart/form-data">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="order_code" value="{{ order.order_code }}">
-    <input type="file" name="slip" accept="image/*" required
-           style="display:block; width:100%; padding:12px; margin-bottom:16px; border:1px solid #ddd; border-radius:8px;">
-    
-    <button class="btn" type="submit">ส่งสลิปหลักฐาน</button>
-  </form>
-</div>
+<div id="payment-expired" class="notice error" hidden>หมดเวลาชำระสำหรับออเดอร์นี้แล้ว กรุณาตรวจสถานะก่อนโอนเงิน หรือติดต่อร้านหากคุณโอนไปแล้ว</div>
+<p class="eyebrow">PAYMENT</p><h1>ชำระเงินให้ {{ branch.name }}</h1><p class="muted">ออเดอร์ {{ order.order_code }} · ตรวจชื่อผู้รับและยอดเงินก่อนโอน</p>
+{% if order.payment_status == 'paid' %}<div class="notice success"><strong>ร้านยืนยันรับเงินแล้ว</strong><br>ติดตามการเตรียมอาหารได้ที่หน้าสถานะ</div>{% elif order.payment_status == 'verifying' %}<div class="notice"><strong>ส่งสลิปแล้ว กำลังรอร้านตรวจสอบ</strong><br>การแนบสลิปยังไม่ใช่การยืนยันรับเงิน กรุณารอร้านตรวจสอบ ไม่ต้องโอนซ้ำ</div>{% elif order.payment_status == 'rejected' %}<div class="notice error"><strong>ร้านขอให้ตรวจสอบสลิปอีกครั้ง</strong><br>{{ order.payment_reason or 'กรุณาตรวจข้อมูลการโอนและส่งหลักฐานที่ถูกต้อง' }}</div>{% elif order.status == 'cancelled' %}<div class="notice error">ออเดอร์นี้ถูกยกเลิกแล้ว กรุณาติดต่อร้านหากคุณโอนเงินแล้ว</div>{% else %}<div class="notice">โอนตามยอดด้านล่าง แล้วแนบสลิป ร้านจะนำออเดอร์เข้าคิวเมื่อยืนยันรับเงินแล้ว</div>{% endif %}
+{% if order.status == 'pending_payment' and order.payment_status in ['pending','rejected'] and qr_b64 %}<section class="card" id="payment-active"><div class="center"><p class="muted">ยอดที่ต้องชำระ</p><div class="queue-number">{{ '%.2f'|format(order.total_price|float) }}<span style="font-size:24px"> ฿</span></div>{% if qr_b64 %}<div class="qr-wrap"><img src="data:image/png;base64,{{ qr_b64 }}" alt="QR พร้อมเพย์สำหรับชำระ {{ '%.2f'|format(order.total_price|float) }} บาท"></div>{% endif %}<p>ผู้รับ: <strong>{{ branch.promptpay_name or branch.name }}</strong></p><p class="muted small">PromptPay {{ promptpay_id }}</p>{% if qr_b64 %}<a class="btn btn-secondary btn-small" href="data:image/png;base64,{{ qr_b64 }}" download="promptpay-{{ order.order_code }}.png">บันทึกภาพ QR</a>{% endif %}<p class="small muted">หากใช้โทรศัพท์เครื่องเดียว ให้บันทึกภาพ QR แล้วเลือกภาพจากแอปธนาคาร</p></div>
+{% if order.expires_at %}<div class="notice small spacer-top">แนบสลิปภายใน <strong>{{ order.expires_at|local_datetime(branch.timezone) }}</strong><span id="payment-countdown" class="help" aria-live="off"></span></div>{% endif %}
+{% if order.payment_status != 'verifying' %}<hr class="divider"><h2>ส่งหลักฐานการโอน</h2><form action="{{ url_for('user.upload_slip', order_id=order.id) }}" method="post" enctype="multipart/form-data" data-slip-upload><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="token" value="{{ token }}"><div class="field"><label for="slip">ภาพสลิป</label><input id="slip" name="slip" type="file" accept="image/jpeg,image/png,image/webp" required><span class="help">รองรับ JPG, PNG และ WebP ขนาดไม่เกิน 5 MB ให้เห็นยอดเงิน วันเวลา และผู้รับชัดเจน</span></div><button class="btn btn-block" type="submit">ส่งสลิปให้ร้านตรวจสอบ</button></form>{% endif %}</section>{% endif %}
+<a class="btn btn-secondary btn-block" href="{{ url_for('user.status_page', order_id=order.id, token=token) }}">ดูสถานะออเดอร์</a>
+<script type="application/json" id="payment-config">{{ {'expiresAt':order.expires_at|default(none),'paymentStatus':order.payment_status}|tojson }}</script>
 {% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='payment.js') }}" defer></script>{% endblock %}

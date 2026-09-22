@@ -1,0 +1,11 @@
+{
+  "name": "qr-project-database-tests",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "test": "node run.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.4.1"
+  }
+}

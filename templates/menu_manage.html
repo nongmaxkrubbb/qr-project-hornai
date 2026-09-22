@@ -1,43 +1,4 @@
-{% extends "base.html" %}
-{% block title %}จัดการเมนู{% endblock %}
-{% block content %}
-<div class="card">
-  <h1>🍽️ จัดการเมนู</h1>
-  {% for item in items %}
-  <div class="menu-item">
-    <div>
-      <div class="menu-item-name">{{ item.name }} {% if not item.is_available %}<span style="color:var(--danger); font-size:0.8rem;">(ปิดขาย)</span>{% endif %}</div>
-      <div class="menu-item-price">{{ item.category }} · {{ "%.0f"|format(item.price) }} บาท</div>
-    </div>
-    <form action="{{ url_for('admin.menu_toggle', item_id=item.id) }}" method="post">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="btn btn-small {% if item.is_available %}btn-danger{% endif %}" type="submit">
-        {% if item.is_available %}ปิดขาย{% else %}เปิดขาย{% endif %}
-      </button>
-    </form>
-  </div>
-  {% else %}
-  <p class="label">ยังไม่มีเมนูเลย เพิ่มด้านล่างได้เลย</p>
-  {% endfor %}
-</div>
-
-<div class="card">
-  <h2>➕ เพิ่มเมนูใหม่</h2>
-  <form action="{{ url_for('admin.menu_add') }}" method="post">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="branch_id" value="{{ branch_id }}">
-    <label class="label">ชื่อเมนู</label>
-    <input type="text" name="name" required
-           style="width:100%; padding:12px; border-radius:8px; border:1px solid #ddd; margin:6px 0 14px;">
-    <label class="label">ราคา (บาท)</label>
-    <input type="number" name="price" step="1" min="0" required
-           style="width:100%; padding:12px; border-radius:8px; border:1px solid #ddd; margin:6px 0 14px;">
-    <label class="label">หมวดหมู่</label>
-    <input type="text" name="category" value="อาหาร"
-           style="width:100%; padding:12px; border-radius:8px; border:1px solid #ddd; margin:6px 0 14px;">
-    <button class="btn" type="submit">เพิ่มเมนู</button>
-  </form>
-</div>
-
-<a href="{{ url_for('admin.admin') }}" class="btn btn-secondary">กลับหน้าครัว</a>
-{% endblock %}
+{% extends 'base.html' %}{% block title %}จัดการเมนู · {{ branch.name }}{% endblock %}{% block content %}<div class="page-heading"><div><p class="eyebrow">MENU MANAGEMENT</p><h1>เมนูของ {{ branch.name }}</h1><p class="muted">ปรับราคา รายละเอียด ตัวเลือก และปิดขายทันทีเมื่อของหมด</p></div><a class="btn" href="#new-menu">+ เพิ่มเมนู</a></div>{% include '_admin_nav.html' %}
+<section class="card"><h2>เมนูทั้งหมด <span class="muted small">{{ items|length }} รายการ</span></h2>{% for item in items %}<article class="cart-line"><div class="flex between"><div><h3>{{ item.name }} <span class="badge {% if item.is_available %}status-ready{% else %}status-cancelled{% endif %}">{% if item.is_available %}เปิดขาย{% else %}ปิดขาย{% endif %}</span></h3><p class="muted small no-margin">{{ item.category }} · {{ '%.2f'|format(item.price|float) }} ฿</p></div><form action="{{ url_for('admin.menu_toggle',item_id=item.id) }}" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-small {% if item.is_available %}btn-danger{% else %}btn-secondary{% endif %}" type="submit">{% if item.is_available %}ปิดขาย{% else %}เปิดขาย{% endif %}</button></form></div><details class="spacer-top"><summary class="small">แก้ไขรายละเอียดเมนู</summary><form action="{{ url_for('admin.menu_edit',item_id=item.id) }}" method="post" class="spacer-top" data-menu-form><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="branch_id" value="{{ branch.id }}">{% include '_menu_fields.html' %}<button class="btn" type="submit">บันทึก {{ item.name }}</button></form></details></article>{% else %}<div class="empty"><p>ยังไม่มีเมนู เริ่มเพิ่มเมนูแรกด้านล่าง</p></div>{% endfor %}</section>
+<section class="card" id="new-menu"><p class="eyebrow">ADD SOMETHING GOOD</p><h2>เพิ่มเมนูใหม่</h2><form action="{{ url_for('admin.menu_add') }}" method="post" data-menu-form><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="branch_id" value="{{ branch.id }}">{% with item=none %}{% include '_menu_fields.html' %}{% endwith %}<button class="btn" type="submit">เพิ่มเมนูและเปิดขาย</button></form></section>
+{% endblock %}{% block scripts %}<script src="{{ url_for('static',filename='menu-editor.js') }}" defer></script>{% endblock %}

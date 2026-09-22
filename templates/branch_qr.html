@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}QR ร้าน · {{ branch.name }}{% endblock %}
+{% block container_class %}narrow{% endblock %}
+{% block content %}
+<section class="card center">
+  <p class="eyebrow">สแกนเพื่อสั่งอาหาร</p>
+  <h1>{{ branch.name }}</h1>
+  <p class="muted">{{ branch.campus or '' }}</p>
+  <div class="qr-wrap"><img src="data:image/png;base64,{{ qr_b64 }}" alt="QR สำหรับเปิดเมนู {{ branch.name }}"></div>
+  <h2>สั่งไว้ รับเมื่อพร้อม</h2>
+  <p>จุดรับ: {{ branch.pickup_point or 'หน้าร้าน' }}</p>
+  <p class="small" style="overflow-wrap:anywhere"><a href="{{ menu_url }}">{{ menu_url }}</a></p>
+  <button type="button" class="btn btn-block" data-print>พิมพ์ QR สำหรับติดหน้าร้าน</button>
+</section>
+<a class="btn btn-plain btn-block" href="{{ url_for('admin.kitchen',branch_id=branch.id) }}">กลับไปบอร์ดครัว</a>
+{% endblock %}
