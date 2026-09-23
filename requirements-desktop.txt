@@ -1,0 +1,5 @@
+# แพ็กเกจเสริมสำหรับรันและคอมไพล์ Desktop Application
+# ติดตั้งด้วย: pip install -r requirements-desktop.txt
+
+pywebview>=5.0.0
+pyinstaller>=6.5.0
